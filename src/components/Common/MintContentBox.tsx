@@ -25,6 +25,21 @@ export default function MintContentBox() {
     chainId,
   });
 
+  const { data: currentTokenId, isLoading: currentTokenIdLoading } = useContractRead({
+    address: NFT_ADDR as "0x",
+    abi: contractABI,
+    functionName: "currentTokenId",
+    chainId,
+  });
+
+  const { data: totalBurned, isLoading: totalBurnedLoading } = useContractRead({
+    address: NFT_ADDR as "0x",
+    abi: contractABI,
+    functionName: "totalBurned",
+    chainId,
+  });
+
+
   const price =
     currentPrice && typeof currentPrice === "bigint"
       ? Number(currentPrice) / 10 ** 18
@@ -61,6 +76,19 @@ export default function MintContentBox() {
           <div>Price:</div>
           <div>{priceLoading ? "Loading..." : `${price} ETC`}</div>
         </div>
+
+        <div className="flex items-center space-x-3 text-xl font-bold uppercase text-white">
+          <div>Minted:</div>
+          <div>{currentTokenIdLoading ? "Loading..." : `${currentTokenId?.toString()} `}</div>
+        </div>
+
+        <div className="flex items-center space-x-3 text-xl font-bold uppercase text-white">
+          <div>burned:</div>
+          <div>{totalBurnedLoading ? "Loading..." : `${totalBurned?.toString()} `}</div>
+        </div>
+
+
+
 
         <div className="flex flex-row justify-start gap-5">
           {isConnected ? (

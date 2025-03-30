@@ -23,7 +23,7 @@ export default function Document() {
         <Main />
         <NextScript />
         <title>Classic Birds</title>
-        <meta name="description" content="" />
+        <meta name="description" content="Built on Ethereum Classic" />
         <meta name="keywords" content="Built on Ethereum Classic" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="" />

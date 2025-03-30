@@ -64,7 +64,7 @@ export function Header() {
           </Link>
      <div className=" flex flex-row mx-auto gap-5">
      <ConnectButton />
-     <a className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4] " href="https://t.co/7KJuUPYhPJ" target="_blank" rel="noopener noreferrer">Official links</a>
+     <a className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4] " href="https://linktr.ee/ClassicBirds" target="_blank" rel="noopener noreferrer">Official links</a>
      </div>
         </div>
       </div>
