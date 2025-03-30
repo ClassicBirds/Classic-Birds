@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+body,
+html {
+	font-family: 'Poppins';
+  background-position: center;
+  background-size: cover;
+  overflow-x: hidden;
+  background-color: black;
+
+}
+
+@layer components {
+  .nav_link_li {
+    @apply relative flex items-center text-white gap-2 text-sm font-medium   cursor-pointer rounded  dark:hover:bg-slate-800 p-4 transition-all;
+  }
+  .boxHeader {
+    @apply text-sm dark:gdText;
+  }
+  .boxmidHeader {
+    @apply text-2xl md:text-2xl font-extrabold dark:text-[#667D94];
+  }
+  .boxShdark {
+    @apply boxShDark;
+  }
+  .box {
+    @apply bg-transparent md:bg-[#FFFFFF] py-4  minphone:dark:border-b md:rounded-2xl md:dark:bg-darkbg phone:border-[#DCDCDC] phone:dark:border-[#27333F] minphone:dark:border-[#0DDACE] border-[#DCDCDC]  phone:bg-[#ffffff00] minphone:boxsh minphone:dark:boxshDark phone:border-t;
+  }
+  .towcolbox {
+    @apply px-2 md:px-6 items-center flex flex-row  justify-between md:gap-5;
+  }
+  .phBox {
+    @apply phone:w-[65%];
+  }
+  .border_color {
+    @apply border-[#80ffcc] border-[2px];
+  }
+  .tranfer_lebel {
+    @apply sm:text-base text-base font-normal dark:text-white capitalize;
+  }
+  .boxPadding {
+    @apply flex flex-col gap-1;
+  }
+  .gdText {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-[#80FFCC] to-[#0DDACE];
+  }
+  .gdcolordark {
+    @apply gdcolorDark;
+  }
+  .boxshDark {
+    @apply boxShDark;
+  }
+  .boxsh {
+    @apply boxSh;
+  }
+  .stopscrollpadding{
+    @apply stopscrollpaddings
+  }
+  .homebtn {
+    @apply h-11 px-[25px] py-2.5  hover:scale-105 transition-all hover:bg-opacity-75 bg-gradient-to-b flex items-center from-[#12ED60] to-[#0A8737] rounded-md   text-base;
+  }
+  .hero_title{
+    @apply text-white middllarge:text-xl text-2xl smPro:text-2xl  sm:text-4xl
+    xl:text-6xl font-extrabold font-PlusJakartaSans uppercase 
+  }
+  .img-click-none{
+    @apply pointer-events-none
+  }
+  .sButton{
+    @apply  text-base w-full text-center px-5 bg-gradient-to-b from-yellow-500 to-yellow-700    rounded-xl  flex justify-center h-[40px]  items-center  cursor-pointer mx-auto md:mx-0 font-bold  text-white
+
+  }
+}
+
+.gradient-text-slider {
+  @apply bg-clip-text text-transparent;
+  background: linear-gradient(90deg, #E32B90 0%, #7D184F 100%);
+background-clip: text;
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+}
+
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spanAnimation{
+  animation: spin 10s linear infinite;
+}
+.hoverscale:hover{
+  opacity: 50 !important;
+
+}
+
+
+.stopscrollpaddings {
+  scroll-padding-top: 30rem;
+  /* scroll-snap-align:start !important */
+}
+@media (min-width: 800px) {
+  .stopscrollpadding {
+    scroll-margin-top: 10rem;
+    /* scroll-snap-align:start !important */
+  }
+}
+
+.alignSelf {
+  align-self: normal;
+}
+.borderColor {
+  border: 2px solid #80ffcc;
+}
+
+.toggleBTN {
+  border-image-source: linear-gradient(
+    104.73deg,
+    #80ffcc 10.41%,
+    #0ddace 89.69%
+  );
+}
+
+.tablehederbg {
+  background: rgba(69, 141, 214, 0.06);
+}
+.linebg {
+  background: linear-gradient(104.73deg, #80ffcc 10.41%, #0ddace 89.69%);
+  box-shadow: 0px 0px 16px 0px #80ffcc;
+}
+
+.connet_btn {
+  background: linear-gradient(104.73deg, #80ffcc 10.41%, #0ddace 89.69%);
+}
+.white_bg {
+  background: rgba(255, 255, 255, 1);
+}
+.grbtnbg {
+  background: linear-gradient(104.73deg, #80ffcc 10.41%, #0ddace 89.69%);
+}
+.bgDark {
+  background: rgba(12, 22, 33, 1);
+}
+.boxSh {
+  box-shadow: 4px 4px 8px 0px #d9d9d940;
+}
+.boxShDark {
+  box-shadow: 0px 0px 0px 0px #d9d9d940;
+}
+.endBtn {
+  box-shadow: 0px 0px 16px 0px #fe03f5;
+  padding: 5px 15px 5px 15px;
+  border-radius: 5px;
+}
+.gdcolor {
+  background: linear-gradient(white, white) padding-box,
+    linear-gradient(to right, #80ffcc, #0ddace) border-box;
+  border-radius: 50em;
+  border: 2px solid transparent;
+}
+
+.gdcolorDark {
+  background: linear-gradient(#090f15, #090f15) padding-box,
+    linear-gradient(to right, #80ffcc, #0ddace) border-box;
+  border-radius: 50em;
+  border: 2px solid transparent;
+}
+
+.animated-bg {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, rgba(227, 43, 144, 1), rgba(176, 33, 112, 1), rgba(23, 134, 63, 1), rgba(18, 237, 96, 1));
+  background-size: 400% 400%;
+  animation: gradient-animation 3s ease infinite;
+}
+
+@keyframes gradient-animation {
+  0% {
+      background-position: 0% 50%;
+  }
+  25% {
+      background-position: 50% 50%;
+  }
+  50% {
+      background-position: 100% 50%;
+  }
+  75% {
+      background-position: 50% 50%;
+  }
+  100% {
+      background-position: 0% 50%;
+  }
+}
+
+svg.lucide.lucide-x.h-4.w-4 {
+  color: white;
+}
+.manu-active:before {
+  background: linear-gradient(180deg,#12b7f2,#134fab);
+  content: " ";
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+}
+
+#partnerdiv::after {
+  position: absolute;
+  content: "";
+  width: 92%;
+  height: 16px;
+  background-color: white;
+  top: -16px;
+  border-radius: 13px 10px 0px 0px;
+}
+
+/* Hide the scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Add custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #dcdcdc;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background-color: #ffffff;
+}
