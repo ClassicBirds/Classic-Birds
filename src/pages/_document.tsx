@@ -24,7 +24,7 @@ export default function Document() {
         <NextScript />
         <title>Classic Birds</title>
         <meta name="description" content="" />
-        <meta name="keywords" content="Kryptopoker" />
+        <meta name="keywords" content="Built on Ethereum Classic" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="" />
         <meta property="og:title" content="" />
@@ -33,9 +33,9 @@ export default function Document() {
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="" />
-        <meta property="twitter:title" content="FOKryptopokerX" />
+        <meta property="twitter:title" content="Classic Birds" />
         <meta property="twitter:description" content="." />
-        <meta property="twitter:image" content="/logo.png" />
+        <meta property="twitter:image" content="/IMG_20250327_010138_507.webp" />
       </body>
     </Html>
   );

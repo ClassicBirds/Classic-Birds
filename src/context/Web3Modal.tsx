@@ -29,8 +29,8 @@ const ethereumClassic = {
 const metadata = {
   name: 'Classic Birds',
   description: 'Classic Birds',
-  url: '', // origin must match your domain & subdomain
-  icons: ['']
+  url: 'https://classic-birds.vercel.app', // origin must match your domain & subdomain
+  icons: ['/IMG_20250327_010138_507.webp']
 }
 const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || ""
 const chains = [ethereumClassic] as const
