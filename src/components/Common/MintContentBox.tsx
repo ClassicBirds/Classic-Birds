@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import ConnectButton from "@/components/connetbutton/Nftaiconnet";
 import { useEthersSigner } from "@/hooks/useEthersSigner";
@@ -46,7 +47,7 @@ export default function MintContentBox() {
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR as "0x",
     abi: contractABI,
-    functionName: "getContractETHBalance", // Changed to match your contract
+    functionName: "totalLockedValue", // Changed to match your contract
     chainId,
   });
 
