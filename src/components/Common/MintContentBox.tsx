@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import ConnectButton from "@/components/connetbutton/Nftaiconnet";
 import { useEthersSigner } from "@/hooks/useEthersSigner";
@@ -35,6 +34,7 @@ export default function MintContentBox() {
     abi: contractABI,
     functionName: "currentTokenId",
     chainId,
+    watch: true
   });
 
   const { data: totalBurned, isLoading: totalBurnedLoading } = useContractRead({
@@ -42,13 +42,15 @@ export default function MintContentBox() {
     abi: contractABI,
     functionName: "totalBurned",
     chainId,
+    watch: true
   });
 
-  const { data: contractBalance } = useContractRead({
+  const { data: totalLockedValue, isLoading: lockedValueLoading } = useContractRead({
     address: NFT_ADDR as "0x",
     abi: contractABI,
-    functionName: "totalLockedValue", // Changed to match your contract
+    functionName: "TotalLockedValue",
     chainId,
+    watch: true
   });
 
   // Convert price from wei to ETC
@@ -58,17 +60,28 @@ export default function MintContentBox() {
 
   // Calculate burn reward
   useEffect(() => {
-    if (contractBalance && currentTokenId && totalBurned) {
-      const balanceInETC = Number(contractBalance) / 10 ** 18;
-      const mintedCount = Number(currentTokenId.toString()) - 1;
-      const burnedCount = Number(totalBurned.toString());
-      const activeNFTs = mintedCount - burnedCount;
-      
-      const reward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
-      setBurnReward(reward);
-      setBurnRewardLoading(false);
-    }
-  }, [contractBalance, currentTokenId, totalBurned]);
+    const calculateBurnReward = async () => {
+      try {
+        setBurnRewardLoading(true);
+        
+        if (!totalLockedValue || !currentTokenId || !totalBurned) return;
+
+        const balanceInETC = Number(totalLockedValue) / 10 ** 18;
+        const mintedCount = Number(currentTokenId.toString()) - 1;
+        const burnedCount = Number(totalBurned.toString());
+        const activeNFTs = mintedCount - burnedCount;
+        
+        setBurnReward(activeNFTs > 0 ? balanceInETC / activeNFTs : 0);
+      } catch (error) {
+        console.error("Error calculating burn reward:", error);
+        setBurnReward(null);
+      } finally {
+        setBurnRewardLoading(false);
+      }
+    };
+
+    calculateBurnReward();
+  }, [totalLockedValue, currentTokenId, totalBurned]);
 
   const handleMintClick = async () => {
     if (!address) return;
@@ -80,6 +93,15 @@ export default function MintContentBox() {
     handleBurn(tokenId);
     setIsBurnModalOpen(false);
     setTokenId("");
+  };
+
+  // Format number with 3 decimal places
+  const formatPrecise = (value: number | null) => {
+    if (value === null) return "0.000";
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3
+    });
   };
 
   return (
@@ -142,22 +164,30 @@ export default function MintContentBox() {
       {isBurnModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Enter Token ID to Burn</h2>
+            <h2 className="text-xl font-bold mb-4">Burn NFT</h2>
             
             <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-gray-800">Burn Reward:</span>
-                <span className="text-lg font-bold">
-                  {burnRewardLoading ? (
-                    <ScaleLoader color="#4b5563" height={20} width={2} />
-                  ) : (
-                    `${burnReward?.toFixed(2) || "0.00"} ETC`
-                  )}
-                </span>
-              </div>
-              <div className="mt-2 text-sm text-gray-600">
-                <p>Contract Balance: {contractBalance ? `${(Number(contractBalance) / 10 ** 18).toFixed(2)} ETC` : 'Loading...'}</p>
-                <p>Active NFTs: {currentTokenId && totalBurned ? `${Number(currentTokenId.toString()) - 1 - Number(totalBurned.toString())}` : 'Loading...'}</p>
+              <div className="grid grid-cols-2 gap-2 text-black">
+                <div>Contract Balance:</div>
+                <div className="text-right">
+                  {lockedValueLoading 
+                    ? <ScaleLoader color="#4b5563" height={15} width={1.5} />
+                    : `${formatPrecise(Number(totalLockedValue || 0) / 10 ** 18)} ETC`}
+                </div>
+                
+                <div>Active NFTs:</div>
+                <div className="text-right">
+                  {currentTokenIdLoading || totalBurnedLoading
+                    ? <ScaleLoader color="#4b5563" height={15} width={1.5} />
+                    : Number(currentTokenId?.toString() || 0) - 1 - Number(totalBurned?.toString() || 0)}
+                </div>
+                
+                <div className="font-bold">Burn Reward:</div>
+                <div className="text-right font-bold">
+                  {burnRewardLoading
+                    ? <ScaleLoader color="#4b5563" height={15} width={1.5} />
+                    : `${formatPrecise(burnReward)} ETC`}
+                </div>
               </div>
             </div>
 
@@ -181,7 +211,7 @@ export default function MintContentBox() {
                 className="bg-red-600 text-white font-bold px-4 py-2 rounded-lg disabled:opacity-50"
                 onClick={handleBurns}
               >
-                {burnRewardLoading ? 'Calculating...' : 'Confirm Burn'}
+                Confirm Burn
               </button>
             </div>
           </div>
