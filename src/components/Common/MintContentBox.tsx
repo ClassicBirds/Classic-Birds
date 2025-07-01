@@ -146,7 +146,7 @@ export default function MintContentBox() {
             
             <div className="mb-4 p-3 bg-gray-100 rounded-lg">
               <div className="flex justify-between items-center">
-                <span className="font-semibold text-black">Burn Reward:</span>
+                <span className="font-semibold text-black">Burn Reward per NFT:</span>
                 <span className="text-lg font-bold text-black">
                   {burnRewardLoading ? (
                     <ScaleLoader color="#4b5563" height={20} width={2} />
