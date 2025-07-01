@@ -39,7 +39,6 @@ export default function MintContentBox() {
     chainId,
   });
 
-
   const price =
     currentPrice && typeof currentPrice === "bigint"
       ? Number(currentPrice) / 10 ** 18
@@ -58,8 +57,6 @@ export default function MintContentBox() {
     handleBurn(tokenId)
     setIsBurnModalOpen(false);
     setTokenId(""); // Clear input after burning
-
-
   };
 
   return (
@@ -79,16 +76,17 @@ export default function MintContentBox() {
 
         <div className="flex items-center space-x-3 text-xl font-bold uppercase text-white">
           <div>Minted:</div>
-          <div>{currentTokenIdLoading ? "Loading..." : `${currentTokenId?.toString()} `}</div>
+          <div>
+            {currentTokenIdLoading 
+              ? "Loading..." 
+              : `${currentTokenId ? Number(currentTokenId.toString()) - 1 : 0}`}
+          </div>
         </div>
 
         <div className="flex items-center space-x-3 text-xl font-bold uppercase text-white">
           <div>burned:</div>
-          <div>{totalBurnedLoading ? "Loading..." : `${totalBurned?.toString()} `}</div>
+          <div>{totalBurnedLoading ? "Loading..." : `${totalBurned?.toString()}`}</div>
         </div>
-
-
-
 
         <div className="flex flex-row justify-start gap-5">
           {isConnected ? (
@@ -108,9 +106,7 @@ export default function MintContentBox() {
             className="bg-red-600 font-bold rounded-full h-[50px] hover:opacity-55 duration-200 px-8"
             onClick={() => setIsBurnModalOpen(true)}
           >
-
-
-Burn
+            Burn
           </button>
         </div>
       </div>
@@ -128,7 +124,6 @@ Burn
               onChange={(e) => {
                 setTokenId(e.target.value)
                 console.log(e.target.value);
-
               }}
             />
             <div className="flex justify-end gap-4 mt-4">
