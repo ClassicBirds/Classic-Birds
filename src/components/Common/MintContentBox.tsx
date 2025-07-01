@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ConnectButton from "@/components/connetbutton/Nftaiconnet";
 import { useEthersSigner } from "@/hooks/useEthersSigner";
 import useMintHooks from "@/hooks/useTransation";
@@ -18,7 +18,10 @@ export default function MintContentBox() {
   const { loading: mintLoading, handleMint, handleBurn } = useMintHooks(signer, chainId);
   const [isBurnModalOpen, setIsBurnModalOpen] = useState(false);
   const [tokenId, setTokenId] = useState("");
+  const [burnReward, setBurnReward] = useState<number | null>(null);
+  const [burnRewardLoading, setBurnRewardLoading] = useState(true);
 
+  // Contract data reads
   const { data: currentPrice, isLoading: priceLoading } = useContractRead({
     address: NFT_ADDR as "0x",
     abi: contractABI,
@@ -40,9 +43,31 @@ export default function MintContentBox() {
     chainId,
   });
 
+  const { data: contractBalance } = useContractRead({
+    address: NFT_ADDR as "0x",
+    abi: contractABI,
+    functionName: "getContractETHBalance", // Changed to match your contract
+    chainId,
+  });
+
+  // Convert price from wei to ETC
   const price = currentPrice && typeof currentPrice === "bigint"
-    ? Number(currentPrice) / 10 ** 18
-    : currentPrice || 0;
+    ? (Number(currentPrice) / 10 ** 18).toFixed(2)
+    : "0.00";
+
+  // Calculate burn reward
+  useEffect(() => {
+    if (contractBalance && currentTokenId && totalBurned) {
+      const balanceInETC = Number(contractBalance) / 10 ** 18;
+      const mintedCount = Number(currentTokenId.toString()) - 1;
+      const burnedCount = Number(totalBurned.toString());
+      const activeNFTs = mintedCount - burnedCount;
+      
+      const reward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
+      setBurnReward(reward);
+      setBurnRewardLoading(false);
+    }
+  }, [contractBalance, currentTokenId, totalBurned]);
 
   const handleMintClick = async () => {
     if (!address) return;
@@ -112,17 +137,37 @@ export default function MintContentBox() {
         </div>
       </div>
 
+      {/* Burn Modal */}
       {isBurnModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Enter Token ID to Burn</h2>
+            
+            <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-800">Burn Reward:</span>
+                <span className="text-lg font-bold">
+                  {burnRewardLoading ? (
+                    <ScaleLoader color="#4b5563" height={20} width={2} />
+                  ) : (
+                    `${burnReward?.toFixed(2) || "0.00"} ETC`
+                  )}
+                </span>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                <p>Contract Balance: {contractBalance ? `${(Number(contractBalance) / 10 ** 18).toFixed(2)} ETC` : 'Loading...'}</p>
+                <p>Active NFTs: {currentTokenId && totalBurned ? `${Number(currentTokenId.toString()) - 1 - Number(totalBurned.toString())}` : 'Loading...'}</p>
+              </div>
+            </div>
+
             <input
               type="text"
-              className="bg-white focus:outline-none text-gray-800 dark:bg-gray-900 dark:text-gray-100 sm:text-sm focus:ring-1 rounded focus:ring-blue-600 block w-full p-2.5 pr-6 border dark:border-gray-600 focus:border-blue-600"
+              className="bg-white focus:outline-none text-gray-800 sm:text-sm focus:ring-1 rounded focus:ring-blue-600 block w-full p-2.5 pr-6 border border-gray-300 focus:border-blue-600"
               placeholder="Enter Token ID"
               value={tokenId}
               onChange={(e) => setTokenId(e.target.value)}
             />
+            
             <div className="flex justify-end gap-4 mt-4">
               <button
                 className="bg-gray-400 text-white px-4 py-2 rounded-lg"
@@ -131,11 +176,11 @@ export default function MintContentBox() {
                 Cancel
               </button>
               <button
-                disabled={loading}
-                className="bg-red-600 text-white font-bold px-4 py-2 rounded-lg"
+                disabled={loading || burnRewardLoading}
+                className="bg-red-600 text-white font-bold px-4 py-2 rounded-lg disabled:opacity-50"
                 onClick={handleBurns}
               >
-                Confirm Burn
+                {burnRewardLoading ? 'Calculating...' : 'Confirm Burn'}
               </button>
             </div>
           </div>
