@@ -1,9 +1,9 @@
 // src/components/Common/Inventory.tsx
 import { useState, useEffect } from "react";
-import { useAccount, useContractRead } from "wagmi";
+import { useAccount, useContractRead, useContractReads } from "wagmi";
+import Image from "next/image";
 import { ethers } from "ethers";
-import LazyloadImage from "../Common/LazyloadImage";
-import { nftAbi } from "../../abi/nft.json"; // Import your NFT ABI
+import { nftAbi } from "../../abi/nft.json"; // Make sure this path matches your ABI location
 
 interface NFT {
   tokenId: string;
@@ -17,9 +17,9 @@ export default function Inventory() {
   const [isOpen, setIsOpen] = useState(false);
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [contractAddress, setContractAddress] = useState(""); // Set your NFT contract address here
+  const contractAddress = "YOUR_NFT_CONTRACT_ADDRESS"; // Replace with your actual contract address
 
-  // Fetch balance of NFTs for the connected address
+  // Get balance of NFTs
   const { data: balance } = useContractRead({
     address: contractAddress,
     abi: nftAbi,
@@ -28,56 +28,82 @@ export default function Inventory() {
     enabled: isConnected && !!address,
   });
 
-  // Fetch token IDs owned by the address
-  const fetchNFTs = async () => {
-    if (!address || !balance) return;
-
-    setIsLoading(true);
-    try {
-      const tokenIds = [];
-      const nftData = [];
-
-      // Get all token IDs owned by the address
-      for (let i = 0; i < Number(balance); i++) {
-        const { data: tokenId } = await useContractRead({
-          address: contractAddress,
-          abi: nftAbi,
-          functionName: "tokenOfOwnerByIndex",
-          args: [address, i],
-        });
-        tokenIds.push(tokenId);
+  // Fetch all NFTs when modal opens
+  useEffect(() => {
+    const fetchNFTs = async () => {
+      if (!address || !balance || Number(balance) === 0) {
+        setNfts([]);
+        return;
       }
 
-      // Get metadata for each token
-      for (const tokenId of tokenIds) {
-        const { data: tokenURI } = await useContractRead({
+      setIsLoading(true);
+      try {
+        // Prepare requests for all token IDs
+        const tokenIdRequests = Array(Number(balance))
+          .fill(0)
+          .map((_, i) => ({
+            address: contractAddress,
+            abi: nftAbi,
+            functionName: "tokenOfOwnerByIndex",
+            args: [address, i],
+          }));
+
+        // Execute all token ID requests
+        const tokenIdsResults = await Promise.all(
+          tokenIdRequests.map((config) =>
+            useContractRead(config).then((res) => res.data)
+          )
+        );
+
+        // Prepare metadata requests
+        const metadataRequests = tokenIdsResults.map((tokenId) => ({
           address: contractAddress,
           abi: nftAbi,
           functionName: "tokenURI",
           args: [tokenId],
-        });
+        }));
 
-        // Fetch metadata from IPFS or your API
-        const metadataResponse = await fetch(tokenURI);
-        const metadata = await metadataResponse.json();
+        // Execute all metadata requests
+        const metadataResults = await Promise.all(
+          metadataRequests.map((config) =>
+            useContractRead(config).then((res) => res.data)
+          )
+        );
 
-        nftData.push({
-          tokenId: tokenId.toString(),
-          image: metadata.image,
-          name: metadata.name,
-          description: metadata.description || "",
-        });
+        // Process all metadata
+        const nftData = await Promise.all(
+          metadataResults.map(async (tokenURI, index) => {
+            try {
+              const response = await fetch(
+                tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
+              );
+              const metadata = await response.json();
+              return {
+                tokenId: tokenIdsResults[index].toString(),
+                image: metadata.image.replace("ipfs://", "https://ipfs.io/ipfs/"),
+                name: metadata.name || `NFT #${tokenIdsResults[index]}`,
+                description: metadata.description || "",
+              };
+            } catch (error) {
+              console.error("Error fetching metadata:", error);
+              return {
+                tokenId: tokenIdsResults[index].toString(),
+                image: "",
+                name: `NFT #${tokenIdsResults[index]}`,
+                description: "Metadata not available",
+              };
+            }
+          })
+        );
+
+        setNfts(nftData.filter(Boolean));
+      } catch (error) {
+        console.error("Error fetching NFTs:", error);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      setNfts(nftData);
-    } catch (error) {
-      console.error("Error fetching NFTs:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
     if (isOpen && isConnected) {
       fetchNFTs();
     }
@@ -101,9 +127,9 @@ export default function Inventory() {
               </h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-white hover:text-[#00ffb4]"
+                className="text-white hover:text-[#00ffb4] text-2xl"
               >
-                ✕
+                &times;
               </button>
             </div>
 
@@ -124,8 +150,19 @@ export default function Inventory() {
                     key={nft.tokenId}
                     className="bg-[#1a1a1a] rounded-lg overflow-hidden border border-[#333] hover:border-[#00ffb4] transition-all"
                   >
-                    <div className="aspect-square">
-                      <LazyloadImage src={nft.image} />
+                    <div className="aspect-square bg-gray-800 flex items-center justify-center">
+                      {nft.image ? (
+                        <Image
+                          src={nft.image}
+                          alt={nft.name}
+                          width={300}
+                          height={300}
+                          className="w-full h-full object-cover"
+                          unoptimized={nft.image.startsWith("https://ipfs.io/")}
+                        />
+                      ) : (
+                        <div className="text-gray-400">No image</div>
+                      )}
                     </div>
                     <div className="p-4">
                       <h3 className="text-white font-bold truncate">
