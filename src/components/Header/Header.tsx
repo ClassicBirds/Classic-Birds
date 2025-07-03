@@ -1,71 +1,52 @@
+// src/components/Header/Header.tsx
 import React, { useState, useEffect } from "react";
-import {
-  Navbar,
-  Typography,
-  Button,
-  IconButton,
-  Collapse,
-} from "@material-tailwind/react";
 import Link from "next/link";
 import ConnectButton from "../connetbutton/ConnectButton";
+import Inventory from "../Common/Inventory"; // Add this import
+import { useAccount } from "wagmi";
 
 export function Header() {
-  const [openNav, setOpenNav] = React.useState(false);
   const [scrolling, setScrolling] = useState(false);
+  const { address, isConnected } = useAccount();
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 100) {
-        setScrolling(true);
-      } else {
-        setScrolling(false);
-      }
+      setScrolling(window.scrollY > 100);
     };
-
     window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 960 && openNav) {
-        setOpenNav(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <header
-      className={`mx-auto ${
-        openNav ? "pb-5 overflow-hidden  h-[100vh] " : "pb-0 "
-      } ${
+      className={`mx-auto sticky top-0 z-[100] w-full ${
         scrolling ? "backdrop-blur-md" : ""
-      }  items-center sticky  bg-transparent border-none z-[100]    w-full   top-[0px]   `}
+      }`}
     >
-      <div className="!border-b !border-b-gray-800   ">
-        <div className="!mx-auto max-w-7xl flex flex-row items-center w-full  justify-between  px-6 md:px-16 space-x-2 h-[90px]  ">
-          <Link href="/" className="p-5">
+      <div className="!border-b !border-b-gray-800">
+        <div className="!mx-auto max-w-7xl flex items-center justify-between px-6 md:px-16 h-[90px]">
+          <Link href="/">
             <img
-              src={"/IMG_20250327_010138_507.webp"}
+              src="/IMG_20250327_010138_507.webp"
               width={60}
               alt="logo"
-              className=" cursor-pointer rounded-2xl"
+              className="cursor-pointer rounded-2xl"
               height={40}
             />
           </Link>
-     <div className=" flex flex-row mx-auto gap-5">
-     <ConnectButton />
-     <a className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4] " href="https://linktr.ee/ClassicBirds" target="_blank" rel="noopener noreferrer">Official links</a>
-     </div>
+
+          <div className="flex flex-row gap-5">
+            {isConnected && <Inventory />} {/* Add Inventory component here */}
+            <ConnectButton />
+            <a
+              className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
+              href="https://linktr.ee/ClassicBirds"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Official links
+            </a>
+          </div>
         </div>
       </div>
     </header>
