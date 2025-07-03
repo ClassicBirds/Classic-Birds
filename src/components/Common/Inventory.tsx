@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAccount, useContractReads } from "wagmi";
 import Image from "next/image";
 import { ethers } from "ethers";
-import { nftAbi } from "../../abi/nft.json";
+import { nftAbi } from "src/config/abi/nft.json";
 
 interface NFT {
   tokenId: string;
