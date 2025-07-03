@@ -1,9 +1,9 @@
 // src/components/Common/Inventory.tsx
 import { useState, useEffect } from "react";
-import { useAccount, useContractRead, useContractReads } from "wagmi";
+import { useAccount, useContractReads } from "wagmi";
 import Image from "next/image";
 import { ethers } from "ethers";
-import { nftAbi } from "../../abi/nft.json"; // Make sure this path matches your ABI location
+import { nftAbi } from "../../abi/nft.json";
 
 interface NFT {
   tokenId: string;
@@ -17,10 +17,10 @@ export default function Inventory() {
   const [isOpen, setIsOpen] = useState(false);
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const contractAddress = "YOUR_NFT_CONTRACT_ADDRESS"; // Replace with your actual contract address
+  const contractAddress = "YOUR_NFT_CONTRACT_ADDRESS"; // Replace with your contract address
 
   // Get balance of NFTs
-  const { data: balance } = useContractRead({
+  const { data: balance, refetch: refetchBalance } = useContractRead({
     address: contractAddress,
     abi: nftAbi,
     functionName: "balanceOf",
@@ -28,86 +28,88 @@ export default function Inventory() {
     enabled: isConnected && !!address,
   });
 
-  // Fetch all NFTs when modal opens
+  // Get all token IDs
+  const tokenIdRequests = Array(Number(balance || 0))
+    .fill(0)
+    .map((_, i) => ({
+      address: contractAddress,
+      abi: nftAbi,
+      functionName: "tokenOfOwnerByIndex",
+      args: [address, i],
+      enabled: isOpen && isConnected && !!balance && i < Number(balance),
+    }));
+
+  const { data: tokenIdsResults, refetch: refetchTokenIds } = useContractReads({
+    contracts: tokenIdRequests,
+  });
+
+  // Get all token URIs
+  const metadataRequests = (tokenIdsResults || [])
+    .filter((result): result is { result: string } => !!result?.result)
+    .map((result) => ({
+      address: contractAddress,
+      abi: nftAbi,
+      functionName: "tokenURI",
+      args: [result.result],
+      enabled: isOpen && isConnected,
+    }));
+
+  const { data: metadataResults, refetch: refetchMetadata } = useContractReads({
+    contracts: metadataRequests,
+  });
+
+  // Fetch and process all metadata
   useEffect(() => {
-    const fetchNFTs = async () => {
-      if (!address || !balance || Number(balance) === 0) {
-        setNfts([]);
-        return;
-      }
+    const fetchMetadata = async () => {
+      if (!isOpen || !isConnected || !metadataResults) return;
 
       setIsLoading(true);
       try {
-        // Prepare requests for all token IDs
-        const tokenIdRequests = Array(Number(balance))
-          .fill(0)
-          .map((_, i) => ({
-            address: contractAddress,
-            abi: nftAbi,
-            functionName: "tokenOfOwnerByIndex",
-            args: [address, i],
-          }));
-
-        // Execute all token ID requests
-        const tokenIdsResults = await Promise.all(
-          tokenIdRequests.map((config) =>
-            useContractRead(config).then((res) => res.data)
-          )
+        const validMetadata = metadataResults.filter(
+          (result): result is { result: string } => !!result?.result
         );
 
-        // Prepare metadata requests
-        const metadataRequests = tokenIdsResults.map((tokenId) => ({
-          address: contractAddress,
-          abi: nftAbi,
-          functionName: "tokenURI",
-          args: [tokenId],
-        }));
-
-        // Execute all metadata requests
-        const metadataResults = await Promise.all(
-          metadataRequests.map((config) =>
-            useContractRead(config).then((res) => res.data)
-          )
-        );
-
-        // Process all metadata
         const nftData = await Promise.all(
-          metadataResults.map(async (tokenURI, index) => {
+          validMetadata.map(async (result, index) => {
             try {
+              const tokenId = tokenIdsResults?.[index]?.result?.toString() || "";
+              const tokenURI = result.result;
               const response = await fetch(
                 tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
               );
               const metadata = await response.json();
               return {
-                tokenId: tokenIdsResults[index].toString(),
+                tokenId,
                 image: metadata.image.replace("ipfs://", "https://ipfs.io/ipfs/"),
-                name: metadata.name || `NFT #${tokenIdsResults[index]}`,
+                name: metadata.name || `NFT #${tokenId}`,
                 description: metadata.description || "",
               };
             } catch (error) {
               console.error("Error fetching metadata:", error);
-              return {
-                tokenId: tokenIdsResults[index].toString(),
-                image: "",
-                name: `NFT #${tokenIdsResults[index]}`,
-                description: "Metadata not available",
-              };
+              return null;
             }
           })
         );
 
-        setNfts(nftData.filter(Boolean));
+        setNfts(nftData.filter((nft): nft is NFT => !!nft));
       } catch (error) {
-        console.error("Error fetching NFTs:", error);
+        console.error("Error processing NFTs:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
+    fetchMetadata();
+  }, [isOpen, isConnected, metadataResults, tokenIdsResults]);
+
+  // Refetch data when modal opens
+  useEffect(() => {
     if (isOpen && isConnected) {
-      fetchNFTs();
+      refetchBalance();
+      refetchTokenIds();
+      refetchMetadata();
     }
-  }, [isOpen, isConnected, address, balance]);
+  }, [isOpen, isConnected, refetchBalance, refetchTokenIds, refetchMetadata]);
 
   return (
     <>
