@@ -103,7 +103,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           {/* Header */}
           <div className="px-6 pt-6 pb-2 bg-transparent">
             <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
-              Your NFT Inventory
+              Your Birds Nest
             </Dialog.Title>
           </div>
           
