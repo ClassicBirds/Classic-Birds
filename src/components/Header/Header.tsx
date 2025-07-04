@@ -1,12 +1,10 @@
-// src/components/Header/Header.tsx
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ConnectButton from "../connetbutton/ConnectButton";
-// import Inventory from "../Common/Inventory";
 import InventoryPopup from "../Common/InventoryPopup";
 import { useAccount } from "wagmi";
-
+import { ToastContainer, toast } from "react-toastify";
 export function Header() {
   const [scrolling, setScrolling] = useState(false);
   const { address, isConnected } = useAccount();
@@ -51,7 +49,11 @@ export function Header() {
             </a>
             <button
               onClick={() => {
-                setShowInventory(true);
+                if (address) {
+                  setShowInventory(true);
+                } else {
+                  toast.info("Connect your wallet");
+                }
               }}
               className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
             >
