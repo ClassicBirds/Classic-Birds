@@ -15,7 +15,7 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
             }}
           />
         ) : (
-          <span className="text-gray-400">No image</span>
+          <span className="text-gray-400">Refresh Metadata</span>
         )}
       </div>
       <div className="p-3 bg-white">
