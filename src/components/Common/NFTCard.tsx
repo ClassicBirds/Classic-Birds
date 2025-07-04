@@ -1,3 +1,4 @@
+// NFTCard.tsx
 import React from 'react';
 
 export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
