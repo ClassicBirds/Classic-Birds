@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useContractWrite } from 'wagmi';
+import { useWriteContract } from 'wagmi';
 import { Dialog } from '@headlessui/react';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
@@ -8,21 +8,11 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
   const [showConfirm, setShowConfirm] = useState(false);
   const [recipient, setRecipient] = useState('');
 
-  const [{ loading, error }, send] = useContractWrite({
-    addressOrName: '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6',
-    contractInterface: [
-      {
-        inputs: [
-          { internalType: "address", name: "to", type: "address" },
-          { internalType: "uint256", name: "tokenId", type: "uint256" }
-        ],
-        name: "safeTransferFrom",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function"
-      }
-    ],
-  });
+  const { 
+    writeContract, 
+    isPending: loading, 
+    error 
+  } = useWriteContract();
 
   const handleSend = () => {
     if (!recipient) {
@@ -30,22 +20,29 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
       return;
     }
 
-    send({ args: [recipient, BigInt(id)] })
-      .then(() => {
-        toast.success(`NFT #${id} sent successfully!`);
-        setShowConfirm(false);
-        setRecipient('');
-      })
-      .catch((err) => {
-        toast.error(`Error sending NFT: ${err.message}`);
-      });
+    writeContract({
+      address: '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6',
+      abi: [
+        {
+          inputs: [
+            { name: "to", type: "address" },
+            { name: "tokenId", type: "uint256" }
+          ],
+          name: "safeTransferFrom",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function"
+        }
+      ],
+      functionName: 'safeTransferFrom',
+      args: [recipient, BigInt(id)],
+    });
   };
 
   const isValidAddress = (addr: string) => /^0x[a-fA-F0-9]{40}$/.test(addr);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* Clickable image that opens send dialog */}
       <div 
         className="aspect-square bg-gray-100 relative cursor-pointer" 
         onClick={() => setShowConfirm(true)}
@@ -80,7 +77,6 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
         </button>
       </div>
 
-      {/* Confirmation Dialog - Now shows which NFT is being sent */}
       <Dialog open={showConfirm} onClose={() => !loading && setShowConfirm(false)} className="relative z-50">
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
