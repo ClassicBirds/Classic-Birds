@@ -71,7 +71,9 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   return (
     <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <Dialog.Panel className="w-full max-w-lg p-6 bg-white rounded-2xl shadow-lg">
-        <Dialog.Title className="text-xl font-bold mb-4 text-center text-black">Your NFT Inventory</Dialog.Title>
+        <Dialog.Title className="text-xl font-bold mb-4 text-center text-black bg-transparent">
+          Your NFT Inventory
+        </Dialog.Title>
         
         {/* Wallet Summary */}
         {!loading && nfts.length > 0 && (
