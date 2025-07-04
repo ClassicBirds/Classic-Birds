@@ -3,12 +3,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ConnectButton from "../connetbutton/ConnectButton";
-import Inventory from "../Common/Inventory";
+// import Inventory from "../Common/Inventory";
+import InventoryPopup from "../Common/InventoryPopup";
 import { useAccount } from "wagmi";
 
 export function Header() {
   const [scrolling, setScrolling] = useState(false);
   const { address, isConnected } = useAccount();
+  const [showInventory, setShowInventory] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,7 +21,11 @@ export function Header() {
   }, []);
 
   return (
-    <header className={`mx-auto sticky top-0 z-[100] w-full ${scrolling ? "backdrop-blur-md" : ""}`}>
+    <header
+      className={`mx-auto sticky top-0 z-[100] w-full ${
+        scrolling ? "backdrop-blur-md" : ""
+      }`}
+    >
       <div className="!border-b !border-b-gray-800">
         <div className="!mx-auto max-w-7xl flex items-center justify-between px-6 md:px-16 h-[90px]">
           <Link href="/">
@@ -31,18 +37,33 @@ export function Header() {
               className="cursor-pointer rounded-2xl"
             />
           </Link>
-          
+
           <div className="flex flex-row gap-5">
-            {isConnected && <Inventory />}
+            {/* {isConnected && <Inventory />} */}
             <ConnectButton />
-            <a 
-              className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]" 
-              href="https://linktr.ee/ClassicBirds" 
-              target="_blank" 
+            <a
+              className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
+              href="https://linktr.ee/ClassicBirds"
+              target="_blank"
               rel="noopener noreferrer"
             >
               Official links
             </a>
+            <button
+              onClick={() => {
+                setShowInventory(true);
+              }}
+              className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
+            >
+              Inventory
+            </button>
+
+            <InventoryPopup
+              isOpen={showInventory}
+              onClose={() => {
+                setShowInventory(false);
+              }}
+            />
           </div>
         </div>
       </div>
