@@ -123,7 +123,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
               {nfts.map((nft) => (
                 <NFTCard
                   key={nft.id}
-                  id={nft.id}
+                  id={nft.token_id}
                   name="ClassicBirds"
                   image_url={nft.image_url}
                 />
