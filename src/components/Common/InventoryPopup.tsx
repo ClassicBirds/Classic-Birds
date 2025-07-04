@@ -119,7 +119,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">Reward per NFT:</span>
                 <span className="font-bold text-green-600">
-                  {formatExactDecimals(rewardPerNFT, 5)} ETC
+                  {formatExactDecimals(rewardPerNFT, 6)} ETC
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2">
