@@ -17,7 +17,7 @@ const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
 
-//   const address = "0x176135Cd42b3464EC298281278ab2F05f269CBF5"
+ // const address = "0x176135Cd42b3464EC298281278ab2F05f269CBF5"
   const {address} = useAccount()
   const [nfts, setNfts] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(false);

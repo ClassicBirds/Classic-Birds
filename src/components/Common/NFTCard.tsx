@@ -9,14 +9,15 @@ type NFTCardProps = {
 
 type Metadata = {
   image: string;
-  name?: string;
+  name: string;
   description?: string;
 };
 
-export default function NFTCard({ id, name }: NFTCardProps) {
+export default function NFTCard({ id }: NFTCardProps) {
   const metadataURI = `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${id}.json`;
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [name,setName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,6 +25,8 @@ export default function NFTCard({ id, name }: NFTCardProps) {
       try {
         const { data } = await axios.get<Metadata>(metadataURI);
         setImageUrl(data.image);
+        setName(data.name);
+
       } catch (error) {
         console.error(`Error fetching metadata for token ${id}:`, error);
         setImageUrl(null);
@@ -48,7 +51,7 @@ export default function NFTCard({ id, name }: NFTCardProps) {
       ) : (
         <div className="w-full h-32 bg-gray-200 flex items-center justify-center rounded">No Image</div>
       )}
-      <div className="mt-2 font-medium">{name} #{id}</div>
+      <div className="mt-2 font-medium">{name} </div>
     </div>
   );
 }
