@@ -69,53 +69,79 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   }, [isOpen, address]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <Dialog.Panel className="w-full max-w-lg p-6 bg-white rounded-2xl shadow-lg">
-        <Dialog.Title className="text-xl font-bold mb-4 text-center text-black bg-transparent">
-          Your NFT Inventory
-        </Dialog.Title>
-        
-        {/* Wallet Summary */}
-        {!loading && nfts.length > 0 && (
-          <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold text-black">Total NFTs:</span>
-              <span className="font-bold text-black">{nfts.length}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-black">Wallet worth in burn reward:</span>
-              <span className="font-bold text-green-600">{walletWorth.toFixed(3)} ETC</span>
-            </div>
+    <Dialog 
+      open={isOpen} 
+      onClose={onClose} 
+      className="relative z-[100]"
+    >
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
+      
+      {/* Panel container */}
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          {/* Header with transparent background */}
+          <div className="px-6 pt-6 pb-2 bg-transparent">
+            <Dialog.Title 
+              className="text-2xl font-bold text-center text-gray-900"
+            >
+              Your NFT Inventory
+            </Dialog.Title>
           </div>
-        )}
+          
+          {/* Wallet Summary */}
+          {!loading && nfts.length > 0 && (
+            <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-semibold text-gray-700">Total NFTs:</span>
+                <span className="font-bold text-gray-900">{nfts.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-700">Wallet worth in burn reward:</span>
+                <span className="font-bold text-green-600">{walletWorth.toFixed(3)} ETC</span>
+              </div>
+            </div>
+          )}
 
-        {/* NFT Grid */}
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <ScaleLoader color="#bb1b5d" />
+          {/* Loading state */}
+          {loading && (
+            <div className="flex justify-center items-center py-12">
+              <ScaleLoader color="#3B82F6" />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && nfts.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No NFTs found in your wallet.
+            </div>
+          )}
+
+          {/* NFT Grid */}
+          {!loading && nfts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-6 pt-0">
+              {nfts.map((nft) => (
+                <NFTCard
+                  key={nft.id}
+                  id={nft.id}
+                  name="ClassicBirds"
+                  image_url={nft.image_url}
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Close button */}
+          <div className="px-6 pb-6 pt-2">
+            <button 
+              onClick={onClose} 
+              className="w-full py-3 text-black font-medium hover:bg-opacity-90 transition-all rounded-lg bg-[#00ffb4] shadow-sm"
+            >
+              Close
+            </button>
           </div>
-        ) : nfts.length === 0 ? (
-          <div className="text-center py-8 text-black">No NFTs found in your wallet.</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3">
-            {nfts.map((nft) => (
-              <NFTCard
-                key={nft.id}
-                id={nft.id}
-                name="ClassicBirds" // Hardcoded name as requested
-                image_url={nft.image_url}
-              />
-            ))}
-          </div>
-        )}
-        
-        <button 
-          onClick={onClose} 
-          className="mt-6 w-full py-2 text-black hover:scale-105 transition-all rounded-lg bg-[#00ffb4]"
-        >
-          Close
-        </button>
-      </Dialog.Panel>
+        </Dialog.Panel>
+      </div>
     </Dialog>
   );
 }
