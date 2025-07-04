@@ -1,27 +1,19 @@
-<ScaleLoader color="#bb1b5d" />
-          </div>
-        ) : nfts.length === 0 ? (
-          <div className="text-center py-8">No NFTs found in your wallet.</div>
+import React from 'react';
+
+export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
+  return (
+    <div className="border rounded-lg overflow-hidden shadow-sm">
+      <div className="aspect-square bg-gray-100 flex items-center justify-center">
+        {image_url ? (
+          <img src={image_url} alt={name} className="object-cover w-full h-full" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3">
-            {nfts.map((nft) => (
-              <NFTCard
-                key={nft.id}
-                id={nft.id}
-                name={nft.token.name}
-                image_url={nft.image_url}
-              />
-            ))}
-          </div>
+          <span className="text-gray-400">No image</span>
         )}
-        
-        <button 
-          onClick={onClose} 
-          className="mt-6 w-full py-2 text-black hover:scale-105 transition-all rounded-lg bg-[#00ffb4]"
-        >
-          Close
-        </button>
-      </Dialog.Panel>
-    </Dialog>
+      </div>
+      <div className="p-3">
+        <h3 className="font-medium truncate">{name}</h3>
+        <p className="text-sm text-gray-500">ID: {id}</p>
+      </div>
+    </div>
   );
 }
