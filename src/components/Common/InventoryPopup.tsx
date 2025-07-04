@@ -1,4 +1,4 @@
-
+// InventoryPopup.tsx (updated with exact decimal formatting)
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog } from '@headlessui/react';
@@ -11,6 +11,14 @@ import contractABI from '@/config/ABI/nft.json';
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const chainId = 61;
 
+// New utility function for exact decimal formatting without rounding
+const formatExactDecimals = (value: number, decimals: number = 4) => {
+  const parts = value.toString().split('.');
+  const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
+  const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
+  return `${integerPart}.${decimalPart}`;
+};
+
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
   const { address } = useAccount();
   const [nfts, setNfts] = useState<any[]>([]);
@@ -18,7 +26,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
 
-  // Contract reads
+  // Contract reads (remain the same)
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -53,8 +61,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   // Calculate wallet worth
   useEffect(() => {
     if (rewardPerNFT > 0 && nfts.length > 0) {
-      // Calculate total worth using precise multiplication
-      const totalWorth = parseFloat((nfts.length * rewardPerNFT).toFixed(6));
+      const totalWorth = rewardPerNFT * nfts.length;
       setWalletWorth(totalWorth);
     } else {
       setWalletWorth(0);
@@ -93,7 +100,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       {/* Panel container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-          {/* Header with transparent background */}
+          {/* Header */}
           <div className="px-6 pt-6 pb-2 bg-transparent">
             <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
               Your NFT Inventory
@@ -105,15 +112,21 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-semibold text-gray-700">Total NFTs:</span>
-                <span className="font-bold text-gray-900">{nfts.length}</span>
+                <span className="font-bold text-gray-900">
+                  {new Intl.NumberFormat('en-US').format(nfts.length)}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">Reward per NFT:</span>
-                <span className="font-bold text-green-600">{rewardPerNFT.toFixed(6)} ETC</span>
+                <span className="font-bold text-green-600">
+                  {formatExactDecimals(rewardPerNFT)} ETC
+                </span>
               </div>
               <div className="flex justify-between items-center mt-2">
-                <span className="font-semibold text-gray-700">Wallet worth in burn reward:</span>
-                <span className="font-bold text-green-600">{walletWorth.toFixed(6)} ETC</span>
+                <span className="font-semibold text-gray-700">Wallet worth:</span>
+                <span className="font-bold text-green-600">
+                  {formatExactDecimals(walletWorth)} ETC
+                </span>
               </div>
             </div>
           )}
