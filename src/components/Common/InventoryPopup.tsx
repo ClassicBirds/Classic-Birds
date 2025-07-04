@@ -71,17 +71,17 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   return (
     <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <Dialog.Panel className="w-full max-w-lg p-6 bg-white rounded-2xl shadow-lg">
-        <Dialog.Title className="text-xl font-bold mb-4 text-center">Your NFT Inventory</Dialog.Title>
+        <Dialog.Title className="text-xl font-bold mb-4 text-center text-black">Your NFT Inventory</Dialog.Title>
         
         {/* Wallet Summary */}
         {!loading && nfts.length > 0 && (
           <div className="mb-4 p-4 bg-gray-100 rounded-lg">
             <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold">Total NFTs:</span>
-              <span className="font-bold">{nfts.length}</span>
+              <span className="font-semibold text-black">Total NFTs:</span>
+              <span className="font-bold text-black">{nfts.length}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="font-semibold">Wallet worth in burn reward:</span>
+              <span className="font-semibold text-black">Wallet worth in burn reward:</span>
               <span className="font-bold text-green-600">{walletWorth.toFixed(3)} ETC</span>
             </div>
           </div>
@@ -93,14 +93,14 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             <ScaleLoader color="#bb1b5d" />
           </div>
         ) : nfts.length === 0 ? (
-          <div className="text-center py-8">No NFTs found in your wallet.</div>
+          <div className="text-center py-8 text-black">No NFTs found in your wallet.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3">
             {nfts.map((nft) => (
               <NFTCard
                 key={nft.id}
                 id={nft.id}
-                name={nft.token.name}
+                name="ClassicBirds" // Hardcoded name as requested
                 image_url={nft.image_url}
               />
             ))}
