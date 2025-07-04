@@ -15,7 +15,7 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
   } = useWriteContract();
 
   const handleSend = () => {
-    if (!recipient) {
+    if (!isValidAddress(recipient)) {
       toast.error('Please enter a valid recipient address');
       return;
     }
@@ -35,11 +35,17 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
         }
       ],
       functionName: 'safeTransferFrom',
-      args: [recipient, BigInt(id)],
+      args: [recipient as `0x${string}`, BigInt(id)],
     });
   };
 
-  const isValidAddress = (addr: string) => /^0x[a-fA-F0-9]{40}$/.test(addr);
+  const isValidAddress = (addr: string) => {
+    try {
+      return /^0x[a-fA-F0-9]{40}$/.test(addr);
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -93,7 +99,10 @@ export default function NFTCard({ id, name, image_url }: { id: string; name: str
               <input
                 type="text"
                 value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  setRecipient(val);
+                }}
                 className="w-full p-2 border border-gray-300 rounded"
                 placeholder="0x..."
                 disabled={loading}
