@@ -1,46 +1,46 @@
 import React, { useState } from 'react';
-import { useAccount, useContractWrite, usePrepareContractWrite } from 'wagmi';
-import { NFT_ADDR } from '@/config';
-import contractABI from '@/config/ABI/nft.json';
-import { toast } from 'react-toastify';
+import { useContractWrite, usePrepareContractWrite } from 'wagmi';
+import { Dialog } from '@headlessui/react';
 
 export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
-  const { address } = useAccount();
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [recipientAddress, setRecipientAddress] = useState('');
-  const [isConfirming, setIsConfirming] = useState(false);
-
-  // Prepare the contract write for transfer
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [recipient, setRecipient] = useState('');
+  
+  // Prepare the contract write for transferring NFT
   const { config } = usePrepareContractWrite({
-    address: NFT_ADDR,
-    abi: contractABI,
+    address: '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6',
+    abi: [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          }
+        ],
+        "name": "safeTransferFrom",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ],
     functionName: 'safeTransferFrom',
-    args: [address, recipientAddress, id],
-    enabled: !!recipientAddress && !!address,
+    args: [recipient, BigInt(id)],
+    enabled: !!recipient,
   });
 
-  const { write: transferNFT } = useContractWrite({
-    ...config,
-    onSuccess: () => {
-      toast.success('NFT transferred successfully!');
-      setShowSendModal(false);
-      setRecipientAddress('');
-    },
-    onError: (error) => {
-      toast.error(`Transfer failed: ${error.message}`);
-    },
-    onSettled: () => {
-      setIsConfirming(false);
-    }
-  });
+  const { write: sendNFT, isLoading } = useContractWrite(config);
 
   const handleSend = () => {
-    if (!recipientAddress) {
-      toast.error('Please enter a valid wallet address');
-      return;
+    if (recipient && sendNFT) {
+      sendNFT();
+      setShowConfirm(false);
     }
-    setIsConfirming(true);
-    transferNFT?.();
   };
 
   return (
@@ -64,59 +64,52 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
         <h3 className="font-medium text-gray-900 truncate">ClassicBirds</h3>
         <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
         
-        <button
-          onClick={() => setShowSendModal(true)}
-          className="mt-3 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+        <button 
+          onClick={() => setShowConfirm(true)}
+          className="mt-2 w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
         >
-          Send
+          Send NFT
         </button>
       </div>
 
-      {/* Send Modal */}
-      {showSendModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Transfer NFT</h3>
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirm} onClose={() => setShowConfirm(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="w-full max-w-sm rounded bg-white p-6">
+            <Dialog.Title className="text-lg font-bold mb-4">Confirm Transfer</Dialog.Title>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Recipient Wallet Address
+                Recipient Address:
               </label>
               <input
                 type="text"
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded"
                 placeholder="0x..."
-                className="w-full p-2 border border-gray-300 rounded-md"
               />
             </div>
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-2">
               <button
-                onClick={() => {
-                  setShowSendModal(false);
-                  setRecipientAddress('');
-                }}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                disabled={isConfirming}
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSend}
-                disabled={!recipientAddress || isConfirming}
-                className={`px-4 py-2 text-white rounded-md ${
-                  isConfirming 
-                    ? 'bg-blue-400' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                disabled={!recipient || isLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
               >
-                {isConfirming ? 'Confirming...' : 'Confirm Transfer'}
+                {isLoading ? 'Sending...' : 'Confirm'}
               </button>
             </div>
-          </div>
+          </Dialog.Panel>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }
