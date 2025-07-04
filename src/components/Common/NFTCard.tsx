@@ -11,8 +11,8 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
         )}
       </div>
       <div className="p-3">
-        <h3 className="font-medium truncate">{name}</h3>
-        <p className="text-sm text-gray-500">ID: {id}</p>
+        <h3 className="font-medium truncate">ClassicBirds</h3>
+        <p className="text-sm text-black-500">TOKEN ID: {id}</p>
       </div>
     </div>
   );
