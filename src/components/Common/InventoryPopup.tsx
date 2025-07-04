@@ -1,4 +1,4 @@
-// InventoryPopup.tsx (updated with exact decimal formatting)
+// InventoryPopup.tsx (updated with different decimal precision)
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog } from '@headlessui/react';
@@ -11,8 +11,8 @@ import contractABI from '@/config/ABI/nft.json';
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const chainId = 61;
 
-// New utility function for exact decimal formatting without rounding
-const formatExactDecimals = (value: number, decimals: number = 4) => {
+// Utility function for exact decimal formatting without rounding
+const formatExactDecimals = (value: number, decimals: number) => {
   const parts = value.toString().split('.');
   const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
   const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
@@ -119,13 +119,13 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">Reward per NFT:</span>
                 <span className="font-bold text-green-600">
-                  {formatExactDecimals(rewardPerNFT)} ETC
+                  {formatExactDecimals(rewardPerNFT, 5)} ETC
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="font-semibold text-gray-700">Wallet worth:</span>
                 <span className="font-bold text-green-600">
-                  {formatExactDecimals(walletWorth)} ETC
+                  {formatExactDecimals(walletWorth, 3)} ETC
                 </span>
               </div>
             </div>
