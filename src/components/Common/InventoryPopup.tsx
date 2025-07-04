@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog } from '@headlessui/react';
@@ -15,6 +16,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   const [nfts, setNfts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletWorth, setWalletWorth] = useState(0);
+  const [rewardPerNFT, setRewardPerNFT] = useState(0);
 
   // Contract reads
   const { data: contractBalance } = useContractRead({
@@ -38,15 +40,26 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     chainId,
   });
 
-  // Calculate wallet worth
+  // Calculate reward per NFT
   useEffect(() => {
-    if (contractBalance && currentTokenId && totalBurned && nfts.length > 0) {
+    if (contractBalance && currentTokenId && totalBurned) {
       const balanceInETC = Number(contractBalance) / 1e18;
       const activeNFTs = Number(currentTokenId) - 1 - Number(totalBurned);
-      const rewardPerNFT = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
-      setWalletWorth(nfts.length * rewardPerNFT);
+      const calculatedReward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
+      setRewardPerNFT(calculatedReward);
     }
-  }, [contractBalance, currentTokenId, totalBurned, nfts]);
+  }, [contractBalance, currentTokenId, totalBurned]);
+
+  // Calculate wallet worth
+  useEffect(() => {
+    if (rewardPerNFT > 0 && nfts.length > 0) {
+      // Calculate total worth using precise multiplication
+      const totalWorth = parseFloat((nfts.length * rewardPerNFT).toFixed(6));
+      setWalletWorth(totalWorth);
+    } else {
+      setWalletWorth(0);
+    }
+  }, [rewardPerNFT, nfts]);
 
   const fetchNFTs = async () => {
     if (!address) return;
@@ -82,9 +95,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
         <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
           {/* Header with transparent background */}
           <div className="px-6 pt-6 pb-2 bg-transparent">
-            <Dialog.Title 
-              className="text-2xl font-bold text-center text-gray-900"
-            >
+            <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
               Your NFT Inventory
             </Dialog.Title>
           </div>
@@ -97,8 +108,12 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
                 <span className="font-bold text-gray-900">{nfts.length}</span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-700">Reward per NFT:</span>
+                <span className="font-bold text-green-600">{rewardPerNFT.toFixed(6)} ETC</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
                 <span className="font-semibold text-gray-700">Wallet worth in burn reward:</span>
-                <span className="font-bold text-green-600">{walletWorth.toFixed(3)} ETC</span>
+                <span className="font-bold text-green-600">{walletWorth.toFixed(6)} ETC</span>
               </div>
             </div>
           )}
