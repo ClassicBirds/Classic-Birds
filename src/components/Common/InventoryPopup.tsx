@@ -1,4 +1,4 @@
-// InventoryPopup.tsx with walletOfOwner from different contract
+// InventoryPopup.tsx with walletOfOwner implementation
 import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
@@ -50,13 +50,13 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   });
 
   // Read walletOfOwner from the separate contract
-  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
+  const { data: ownedTokenIds, refetch: refetchOwnedTokens, isRefetching } = useContractRead({
     address: WALLET_TRACKER_CONTRACT,
     abi: contractABI, // Make sure this ABI includes walletOfOwner function
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: false, // We'll manually trigger this
+    enabled: false,
   });
 
   // Calculate reward per NFT
@@ -79,7 +79,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     }
   }, [rewardPerNFT, nfts]);
 
-  // Fetch NFTs when the popup opens
+  // Fetch NFTs when the popup opens or address changes
   useEffect(() => {
     const fetchNFTs = async () => {
       if (!address || !isOpen) return;
@@ -88,29 +88,29 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       setError(null);
 
       try {
-        // First get the token IDs from the wallet tracker contract
-        const tokenIdsResponse = await refetchOwnedTokens();
+        // Get token IDs from walletOfOwner
+        const response = await refetchOwnedTokens();
         
-        if (tokenIdsResponse.error) {
-          throw tokenIdsResponse.error;
+        if (response.error) {
+          throw response.error;
         }
 
-        const tokenIds = tokenIdsResponse.data as bigint[];
+        const tokenIds = response.data as bigint[];
         
         if (!tokenIds || tokenIds.length === 0) {
           setNfts([]);
           return;
         }
 
-        // Convert the token IDs to the format expected by the rest of the component
+        // Format the token IDs into NFT objects that match the existing structure
         const formattedNFTs = tokenIds.map((tokenId) => ({
           token_id: tokenId.toString(),
           token: {
             address: TARGET_CONTRACT,
-            name: "ClassicBirds" // You might want to fetch this dynamically
+            name: "ClassicBirds",
+            image_url: `https://ipfs.io/ipfs/Qm.../${tokenId}.png` // Replace with your actual image URL pattern
           },
-          // You might need to fetch the image_url separately if needed
-          image_url: `https://example.com/nft-image/${tokenId}` // Replace with actual image URL logic
+          image_url: `https://ipfs.io/ipfs/Qm.../${tokenId}.png` // Same as above
         }));
 
         setNfts(formattedNFTs);
@@ -184,7 +184,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           )}
 
           {/* Loading state */}
-          {loading && (
+          {(loading || isRefetching) && (
             <div className="flex justify-center items-center py-12">
               <ScaleLoader color="#3B82F6" />
               <span className="ml-3 text-gray-600">Loading NFTs...</span>
@@ -206,7 +206,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
                   key={nft.token_id}
                   id={nft.token_id}
                   name={nft.token?.name || 'ClassicBirds'}
-                  image_url={nft.image_url || ''}
+                  image_url={nft.image_url || nft.token?.image_url || ''}
                 />
               ))}
             </div>
