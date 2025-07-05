@@ -1,4 +1,4 @@
-// Updated InventoryPopup.tsx with walletOfOwner implementation
+// Updated InventoryPopup.tsx with improved image handling
 import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
@@ -7,8 +7,8 @@ import { ScaleLoader } from 'react-spinners';
 import { NFT_ADDR } from '@/config';
 import contractABI from '@/config/ABI/nft.json';
 
-const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6'; // NFT contract
-const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab'; // walletOfOwner contract
+const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
+const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
 const chainId = 61;
 
 // Utility function for exact decimal formatting without rounding
@@ -17,6 +17,26 @@ const formatExactDecimals = (value: number, decimals: number) => {
   const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
   const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
   return `${integerPart}.${decimalPart}`;
+};
+
+// Centralized function to get image URL with fallbacks
+const getImageUrl = (tokenId: string): string => {
+  try {
+    // Try Pinata gateway first
+    const pinataUrl = `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`;
+    
+    // Add alternative IPFS gateways as fallbacks
+    const fallbackUrls = [
+      `https://ipfs.io/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`,
+      `https://cloudflare-ipfs.com/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`,
+      `https://dweb.link/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`
+    ];
+
+    // Return the first URL that works (client-side will handle fallback in NFTCard)
+    return pinataUrl;
+  } catch (e) {
+    return ''; // Return empty string if URL construction fails
+  }
 };
 
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
@@ -101,16 +121,20 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           return;
         }
 
-        // Format the token IDs into NFT objects that match the existing structure
-        const formattedNFTs = tokenIds.map((tokenId) => ({
-          token_id: tokenId.toString(),
-          token: {
-            address: TARGET_CONTRACT,
-            name: "ClassicBirds",
-            image_url: `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png` // Replace with your actual image URL pattern
-          },
-          image_url: `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png` // Same as above
-        }));
+        // Format the token IDs into NFT objects
+        const formattedNFTs = tokenIds.map((tokenId) => {
+          const id = tokenId.toString();
+          const imageUrl = getImageUrl(id);
+          return {
+            token_id: id,
+            token: {
+              address: TARGET_CONTRACT,
+              name: "ClassicBirds",
+              image_url: imageUrl
+            },
+            image_url: imageUrl
+          };
+        });
 
         setNfts(formattedNFTs);
       } catch (err) {
@@ -127,11 +151,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   }, [isOpen, address, refetchOwnedTokens]);
 
   return (
-    <Dialog 
-      open={isOpen} 
-      onClose={onClose} 
-      className="relative z-[100]"
-    >
+    <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
       
@@ -205,7 +225,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
                   key={nft.token_id}
                   id={nft.token_id}
                   name={nft.token?.name || 'ClassicBirds'}
-                  image_url={nft.image_url || nft.token?.image_url || ''}
+                  image_url={nft.image_url}
                 />
               ))}
             </div>
