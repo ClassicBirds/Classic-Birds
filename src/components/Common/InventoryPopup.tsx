@@ -1,4 +1,4 @@
-// InventoryPopup.tsx with walletOfOwner implementation
+// Updated InventoryPopup.tsx with walletOfOwner implementation
 import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
@@ -50,13 +50,12 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   });
 
   // Read walletOfOwner from the separate contract
-  const { data: ownedTokenIds, refetch: refetchOwnedTokens, isRefetching } = useContractRead({
+  const { data: ownedTokenIds, refetch: refetchOwnedTokens, isLoading: isFetchingTokens } = useContractRead({
     address: WALLET_TRACKER_CONTRACT,
-    abi: contractABI, // Make sure this ABI includes walletOfOwner function
+    abi: contractABI,
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: false,
   });
 
   // Calculate reward per NFT
@@ -184,7 +183,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           )}
 
           {/* Loading state */}
-          {(loading || isRefetching) && (
+          {(loading || isFetchingTokens) && (
             <div className="flex justify-center items-center py-12">
               <ScaleLoader color="#3B82F6" />
               <span className="ml-3 text-gray-600">Loading NFTs...</span>
