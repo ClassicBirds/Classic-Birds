@@ -107,9 +107,9 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           token: {
             address: TARGET_CONTRACT,
             name: "ClassicBirds",
-            image_url: `https://ipfs.io/ipfs/Qm.../${tokenId}.png` // Replace with your actual image URL pattern
+            image_url: `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png` // Replace with your actual image URL pattern
           },
-          image_url: `https://ipfs.io/ipfs/Qm.../${tokenId}.png` // Same as above
+          image_url: `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png` // Same as above
         }));
 
         setNfts(formattedNFTs);
