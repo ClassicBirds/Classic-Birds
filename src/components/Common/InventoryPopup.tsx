@@ -1,6 +1,6 @@
-// InventoryPopup.tsx (updated with different decimal precision)
+// InventoryPopup.tsx with robust API handling
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
 import { useAccount, useContractRead } from 'wagmi';
@@ -10,6 +10,9 @@ import contractABI from '@/config/ABI/nft.json';
 
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const chainId = 61;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds between retries
+const API_URL = 'https://etc.blockscout.com/api/v2/addresses';
 
 // Utility function for exact decimal formatting without rounding
 const formatExactDecimals = (value: number, decimals: number) => {
@@ -25,8 +28,9 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   const [loading, setLoading] = useState(false);
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Contract reads (remain the same)
+  // Contract reads
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -68,24 +72,63 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     }
   }, [rewardPerNFT, nfts]);
 
-  const fetchNFTs = async () => {
+  const fetchNFTsWithRetry = async (retryCount = 0): Promise<void> => {
     if (!address) return;
+    
     setLoading(true);
+    setApiError(null);
+
     try {
-      const { data } = await axios.get(`https://etc.blockscout.com/api/v2/addresses/${address}/nft?type=ERC-721`);
+      // Add cache-busting parameter and rate limit headers
+      const { data } = await axios.get(`${API_URL}/${address}/nft`, {
+        params: {
+          type: 'ERC-721',
+          _: Date.now() // Cache buster
+        },
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 10000 // 10 second timeout
+      });
+
       const filtered = data.items?.filter((item: any) => 
         item.token.address.toLowerCase() === TARGET_CONTRACT.toLowerCase()
       );
       setNfts(filtered || []);
+
     } catch (error) {
-      console.error('Error fetching NFTs:', error);
+      const axiosError = error as AxiosError;
+      
+      if (axiosError.response?.status === 429) {
+        // Rate limited - implement exponential backoff
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.warn(`Rate limited. Retrying in ${delay}ms...`);
+        
+        if (retryCount < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchNFTsWithRetry(retryCount + 1);
+        } else {
+          setApiError('Too many requests. Please try again later.');
+        }
+      } else {
+        console.error('API Error:', error);
+        setApiError('Failed to load NFTs. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Debounced API call
   useEffect(() => {
-    if (isOpen) fetchNFTs();
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        fetchNFTsWithRetry();
+      }, 300); // Small delay to prevent rapid calls
+
+      return () => clearTimeout(timer);
+    }
   }, [isOpen, address]);
 
   return (
@@ -107,6 +150,19 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             </Dialog.Title>
           </div>
           
+          {/* Error message */}
+          {apiError && (
+            <div className="mx-6 mt-4 p-3 bg-red-100 text-red-700 rounded-lg">
+              {apiError}
+              <button 
+                onClick={() => fetchNFTsWithRetry()} 
+                className="ml-2 text-red-800 font-semibold hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Wallet Summary */}
           {!loading && nfts.length > 0 && (
             <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
@@ -135,11 +191,12 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
           {loading && (
             <div className="flex justify-center items-center py-12">
               <ScaleLoader color="#3B82F6" />
+              <span className="ml-3 text-gray-600">Loading NFTs...</span>
             </div>
           )}
 
           {/* Empty state */}
-          {!loading && nfts.length === 0 && (
+          {!loading && nfts.length === 0 && !apiError && (
             <div className="text-center py-12 text-gray-500">
               No NFTs found in your wallet.
             </div>
