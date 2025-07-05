@@ -28,13 +28,14 @@ export default function Document() {
         <meta property="og:type" content="website" />
         <meta property="og:url" content="" />
         <meta property="og:title" content="" />
-        <meta property="og:description" content="" />
+        <meta property="og:description" content="ClassicBirds NFTs Project. Burn to claim ETC rewards that grow as trading volume increases. Rare, valuable, and profit-powered." />
         <meta property="og:image" content="/logo.png" />
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="" />
         <meta property="twitter:title" content="Classic Birds" />
-        <meta property="twitter:description" content="." />
+        <meta property="twitter:description" content="
+ClassicBirds NFTs Project. Burn to claim ETC rewards that grow as trading volume increases. Rare, valuable, and profit-powered." />
         <meta property="twitter:image" content="/IMG_20250327_010138_507.webp" />
       </body>
     </Html>
