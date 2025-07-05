@@ -1,4 +1,4 @@
-// InventoryPopup.tsx
+// InventoryPopup.tsx with walletOfOwner from different contract
 import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
@@ -6,47 +6,28 @@ import { useAccount, useContractRead } from 'wagmi';
 import { ScaleLoader } from 'react-spinners';
 import { NFT_ADDR } from '@/config';
 import contractABI from '@/config/ABI/nft.json';
-import Image from 'next/image';
 
-// Configuration
-const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
-const HELPER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
+const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6'; // NFT contract
+const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab'; // walletOfOwner contract
 const chainId = 61;
 
-// Helper Contract ABI
-const helperABI = [
-  {
-    "inputs": [
-      { "internalType": "address", "name": "nftAddress", "type": "address" },
-      { "internalType": "address", "name": "owner", "type": "address" }
-    ],
-    "name": "walletOfOwner",
-    "outputs": [
-      { "internalType": "uint256[]", "name": "", "type": "uint256[]" }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-] as const;
+// Utility function for exact decimal formatting without rounding
+const formatExactDecimals = (value: number, decimals: number) => {
+  const parts = value.toString().split('.');
+  const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
+  const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
+  return `${integerPart}.${decimalPart}`;
+};
 
-interface NFTData {
-  token_id: string;
-  token: {
-    name: string;
-    address: string;
-  };
-  image_url?: string;
-}
-
-export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
   const { address } = useAccount();
-  const [nfts, setNfts] = useState<NFTData[]>([]);
+  const [nfts, setNfts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Contract reads
+  // Contract reads from NFT contract
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -68,75 +49,109 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     chainId,
   });
 
-  // Get NFT IDs from helper contract
-  const { 
-    data: tokenIds, 
-    refetch: refetchNFTs, 
-    isRefetching 
-  } = useContractRead({
-    address: HELPER_CONTRACT,
-    abi: helperABI,
+  // Read walletOfOwner from the separate contract
+  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
+    address: WALLET_TRACKER_CONTRACT,
+    abi: contractABI, // Make sure this ABI includes walletOfOwner function
     functionName: "walletOfOwner",
-    args: [TARGET_CONTRACT, address ?? '0x'],
+    args: [address],
     chainId,
-    enabled: !!address && isOpen,
-    onError: (err) => setError(`Failed to load NFTs: ${err.message}`)
+    enabled: false, // We'll manually trigger this
   });
 
-  // Calculate rewards
+  // Calculate reward per NFT
   useEffect(() => {
     if (contractBalance && currentTokenId && totalBurned) {
       const balanceInETC = Number(contractBalance) / 1e18;
       const activeNFTs = Number(currentTokenId) - 1 - Number(totalBurned);
-      setRewardPerNFT(activeNFTs > 0 ? balanceInETC / activeNFTs : 0);
+      const calculatedReward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
+      setRewardPerNFT(calculatedReward);
     }
   }, [contractBalance, currentTokenId, totalBurned]);
 
-  // Update wallet worth
+  // Calculate wallet worth
   useEffect(() => {
-    setWalletWorth(rewardPerNFT * nfts.length);
+    if (rewardPerNFT > 0 && nfts.length > 0) {
+      const totalWorth = rewardPerNFT * nfts.length;
+      setWalletWorth(totalWorth);
+    } else {
+      setWalletWorth(0);
+    }
   }, [rewardPerNFT, nfts]);
 
-  // Update NFTs when tokenIds change
+  // Fetch NFTs when the popup opens
   useEffect(() => {
-    if (tokenIds) {
-      setNfts(tokenIds.map((id: bigint) => ({
-        token_id: id.toString(),
-        token: {
-          name: "ClassicBirds",
-          address: TARGET_CONTRACT
-        },
-        image_url: `https://nftstorage.link/ipfs/YOUR_IPFS_CID/${id}.png` // Update with your actual IPFS CID
-      })));
-    }
-  }, [tokenIds]);
-
-  // Fetch NFTs when modal opens
-  useEffect(() => {
-    if (isOpen && address) {
+    const fetchNFTs = async () => {
+      if (!address || !isOpen) return;
+      
       setLoading(true);
       setError(null);
-      refetchNFTs().finally(() => setLoading(false));
+
+      try {
+        // First get the token IDs from the wallet tracker contract
+        const tokenIdsResponse = await refetchOwnedTokens();
+        
+        if (tokenIdsResponse.error) {
+          throw tokenIdsResponse.error;
+        }
+
+        const tokenIds = tokenIdsResponse.data as bigint[];
+        
+        if (!tokenIds || tokenIds.length === 0) {
+          setNfts([]);
+          return;
+        }
+
+        // Convert the token IDs to the format expected by the rest of the component
+        const formattedNFTs = tokenIds.map((tokenId) => ({
+          token_id: tokenId.toString(),
+          token: {
+            address: TARGET_CONTRACT,
+            name: "ClassicBirds" // You might want to fetch this dynamically
+          },
+          // You might need to fetch the image_url separately if needed
+          image_url: `https://example.com/nft-image/${tokenId}` // Replace with actual image URL logic
+        }));
+
+        setNfts(formattedNFTs);
+      } catch (err) {
+        console.error('Error fetching NFTs:', err);
+        setError('Failed to load NFTs. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchNFTs();
     }
-  }, [isOpen, address, refetchNFTs]);
+  }, [isOpen, address, refetchOwnedTokens]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
+    <Dialog 
+      open={isOpen} 
+      onClose={onClose} 
+      className="relative z-[100]"
+    >
+      {/* Backdrop */}
       <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
       
+      {/* Panel container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          {/* Header */}
           <div className="px-6 pt-6 pb-2 bg-transparent">
             <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
               Your Birds Nest
             </Dialog.Title>
           </div>
           
+          {/* Error message */}
           {error && (
             <div className="mx-6 mt-4 p-3 bg-red-100 text-red-700 rounded-lg">
               {error}
               <button 
-                onClick={() => refetchNFTs()} 
+                onClick={() => refetchOwnedTokens()} 
                 className="ml-2 text-red-800 font-semibold hover:underline"
               >
                 Retry
@@ -144,6 +159,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             </div>
           )}
 
+          {/* Wallet Summary */}
           {!loading && nfts.length > 0 && (
             <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
               <div className="flex justify-between items-center mb-2">
@@ -155,18 +171,19 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">Burn Reward per NFT:</span>
                 <span className="font-bold text-green-600">
-                  {rewardPerNFT.toFixed(6)} ETC
+                  {formatExactDecimals(rewardPerNFT, 6)} ETC
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="font-semibold text-gray-700">Wallet worth:</span>
                 <span className="font-bold text-green-600">
-                  {walletWorth.toFixed(3)} ETC
+                  {formatExactDecimals(walletWorth, 3)} ETC
                 </span>
               </div>
             </div>
           )}
 
+          {/* Loading state */}
           {loading && (
             <div className="flex justify-center items-center py-12">
               <ScaleLoader color="#3B82F6" />
@@ -174,40 +191,28 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             </div>
           )}
 
+          {/* Empty state */}
           {!loading && nfts.length === 0 && !error && (
             <div className="text-center py-12 text-gray-500">
               No NFTs found in your wallet.
             </div>
           )}
 
+          {/* NFT Grid */}
           {!loading && nfts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-6 pt-0">
               {nfts.map((nft) => (
-                <div key={nft.token_id} className="border rounded-lg overflow-hidden">
-                  {nft.image_url ? (
-                    <div className="relative aspect-square">
-                      <Image
-                        src={nft.image_url}
-                        alt={`ClassicBirds NFT #${nft.token_id}`}
-                        fill
-                        className="object-cover"
-                        unoptimized // Remove if you configure proper image optimization
-                      />
-                    </div>
-                  ) : (
-                    <div className="aspect-square bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-500">No image</span>
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <h3 className="font-medium">#{nft.token_id}</h3>
-                    <p className="text-sm text-gray-600">ClassicBirds</p>
-                  </div>
-                </div>
+                <NFTCard
+                  key={nft.token_id}
+                  id={nft.token_id}
+                  name={nft.token?.name || 'ClassicBirds'}
+                  image_url={nft.image_url || ''}
+                />
               ))}
             </div>
           )}
           
+          {/* Close button */}
           <div className="px-6 pb-6 pt-2">
             <button 
               onClick={onClose} 
