@@ -16,6 +16,18 @@ const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
 const chainId = 61;
 
+// Configure the ETC provider with proper network settings
+const getETCProvider = () => {
+  return new ethers.providers.JsonRpcProvider(
+    "https://etc.rivet.link",
+    {
+      name: "ETC",
+      chainId: 61,
+      ensAddress: undefined
+    }
+  );
+};
+
 const formatExactDecimals = (value: number, decimals: number) => {
   const parts = value.toString().split('.');
   const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
@@ -83,13 +95,21 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
 
   const fetchTokenURI = async (tokenId: string): Promise<string> => {
     try {
-      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.link");
+      const provider = getETCProvider();
       const contract = new ethers.Contract(
         TARGET_CONTRACT,
         ["function tokenURI(uint256 tokenId) external view returns (string memory)"],
         provider
       );
-      const uri = await contract.tokenURI(tokenId);
+      
+      // Add timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+      
+      const uriPromise = contract.tokenURI(tokenId);
+      const uri = await Promise.race([uriPromise, timeoutPromise]);
+      
       return uri;
     } catch (error) {
       console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
@@ -100,35 +120,63 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const fetchMetadata = async (tokenURI: string): Promise<any> => {
     if (!tokenURI) throw new Error("Empty tokenURI");
     
-    // Clean up the tokenURI
-    let cleanUri = tokenURI
-      .replace(/^0x/, '')
-      .replace(/^ipfs:\/\//, '')
-      .replace(/\0+$/, '')
-      .trim();
+    // Clean up the tokenURI - remove null bytes and trim
+    let cleanUri = tokenURI.replace(/\0+$/, '').trim();
 
-    // Try multiple gateways
+    // Check if it's already a full HTTP URL
+    if (cleanUri.startsWith('http')) {
+      // If it's already a complete gateway URL, use it directly
+      try {
+        const response = await fetch(cleanUri);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching from direct URL:', error);
+        throw error;
+      }
+    }
+
+    // Handle IPFS hashes (both with and without ipfs:// prefix)
+    let ipfsHash = cleanUri
+      .replace(/^ipfs:\/\//, '')
+      .replace(/^https:\/\/gateway\.pinata\.cloud\/ipfs\//, '')
+      .replace(/^https:\/\/(.*?)\/ipfs\//, '');
+
+    // List of IPFS gateways to try (in order)
     const gateways = [
-      `https://ipfs.io/ipfs/${cleanUri}`,
-      `https://cloudflare-ipfs.com/ipfs/${cleanUri}`,
-      `https://gateway.pinata.cloud/ipfs/${cleanUri}`,
-      `https://dweb.link/ipfs/${cleanUri}`,
+      'https://ipfs.io/ipfs/',
+      'https://cloudflare-ipfs.com/ipfs/',
+      'https://gateway.pinata.cloud/ipfs/',
+      'https://dweb.link/ipfs/',
+      'https://cf-ipfs.com/ipfs/'
     ];
 
     let lastError: any = null;
     
-    for (const url of gateways) {
+    for (const gateway of gateways) {
+      const url = `${gateway}${ipfsHash}`;
       try {
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(url, { 
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        clearTimeout(timeout);
+        
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
       } catch (error) {
+        console.error(`Failed with gateway ${gateway}:`, error);
         lastError = error;
         continue;
       }
     }
     
-    throw lastError || new Error("All gateways failed");
+    throw lastError || new Error("All IPFS gateways failed");
   };
 
   useEffect(() => {
