@@ -1,6 +1,6 @@
-import React from 'react';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
+// src/components/Common/NFTCard.tsx
+import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface NFTCardProps {
   id: string;
@@ -9,6 +9,9 @@ interface NFTCardProps {
 }
 
 export default function NFTCard({ id, name, image_url }: NFTCardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   const cleanImageUrl = image_url?.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
     .replace(/\0+$/, '')
     .trim();
@@ -16,26 +19,27 @@ export default function NFTCard({ id, name, image_url }: NFTCardProps) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
-        {cleanImageUrl ? (
-          <LazyLoadImage
-            src={cleanImageUrl}
-            alt={name}
-            effect="blur" // Optional blur-up effect
-            width="100%"
-            height="100%"
-            style={{
-              objectFit: 'cover',
-              width: '100%',
-              height: '100%'
-            }}
-            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/placeholder-nft.png';
-              target.className = 'object-contain p-4';
-            }}
-          />
+        {cleanImageUrl && !imageError ? (
+          <>
+            <Image
+              src={cleanImageUrl}
+              alt={name}
+              fill
+              className={`object-cover transition-opacity duration-300 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+              onLoadingComplete={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              unoptimized // Remove this if using Vercel image optimization
+            />
+            {!imageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="animate-pulse bg-gray-200 w-full h-full" />
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-4 text-center">
+          <div className="flex flex-col items-center justify-center p-4 text-center w-full h-full">
             <span className="text-gray-400">No image available</span>
           </div>
         )}
