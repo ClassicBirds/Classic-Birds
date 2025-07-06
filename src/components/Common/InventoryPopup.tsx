@@ -49,14 +49,16 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     chainId,
   });
 
-  // Read from wallet tracker contract
+  // Read from wallet tracker contract with correct query configuration
   const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
     address: WALLET_TRACKER_CONTRACT,
     abi: contractABI,
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: !!address && isOpen,
+    query: {
+      enabled: !!address && isOpen,
+    }
   });
 
   useEffect(() => {
@@ -152,7 +154,83 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
-      {/* ... rest of the component remains the same ... */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          <div className="px-6 pt-6 pb-2 bg-transparent">
+            <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
+              Your Birds Nest
+            </Dialog.Title>
+          </div>
+          
+          {error && (
+            <div className="mx-6 mt-4 p-3 bg-red-100 text-red-700 rounded-lg">
+              {error}
+              <button onClick={() => window.location.reload()} className="ml-2 text-red-800 font-semibold hover:underline">
+                Refresh
+              </button>
+            </div>
+          )}
+
+          {!loading && nfts.length > 0 && (
+            <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-semibold text-gray-700">Total NFTs:</span>
+                <span className="font-bold text-gray-900">
+                  {new Intl.NumberFormat('en-US').format(nfts.length)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-700">Burn Reward per NFT:</span>
+                <span className="font-bold text-green-600">
+                  {formatExactDecimals(rewardPerNFT, 6)} ETC
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="font-semibold text-gray-700">Wallet worth:</span>
+                <span className="font-bold text-green-600">
+                  {formatExactDecimals(walletWorth, 3)} ETC
+                </span>
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center items-center py-12">
+              <ScaleLoader color="#3B82F6" />
+              <span className="ml-3 text-gray-600">Loading NFTs...</span>
+            </div>
+          )}
+
+          {!loading && nfts.length === 0 && !error && (
+            <div className="text-center py-12 text-gray-500">
+              No NFTs found in your wallet.
+            </div>
+          )}
+
+          {!loading && nfts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-6 pt-0">
+              {nfts.map((nft) => (
+                <NFTCard
+                  key={nft.token_id}
+                  id={nft.token_id}
+                  name={nft.token?.name || 'ClassicBirds'}
+                  image_url={nft.image_url}
+                />
+              ))}
+            </div>
+          )}
+          
+          <div className="px-6 pb-6 pt-2">
+            <button 
+              onClick={onClose} 
+              className="w-full py-3 text-black font-medium hover:bg-opacity-90 transition-all rounded-lg bg-[#00ffb4] shadow-sm"
+            >
+              Close
+            </button>
+          </div>
+        </Dialog.Panel>
+      </div>
     </Dialog>
   );
 }
