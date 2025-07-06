@@ -1,4 +1,4 @@
-// Header.tsx
+// src/components/Header/Header.tsx
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -6,6 +6,7 @@ import ConnectButton from "../connetbutton/ConnectButton";
 import InventoryPopup from "../Common/InventoryPopup";
 import { useAccount } from "wagmi";
 import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export function Header() {
   const [scrolling, setScrolling] = useState(false);
@@ -28,13 +29,14 @@ export function Header() {
     >
       <div className="!border-b !border-b-gray-800">
         <div className="!mx-auto max-w-7xl flex items-center justify-between px-6 md:px-16 h-[90px]">
-          <Link href="/">
+          <Link href="/" passHref>
             <Image
               src="/IMG_20250327_010138_507.webp"
               width={60}
               height={40}
               alt="logo"
               className="cursor-pointer rounded-2xl"
+              priority
             />
           </Link>
 
@@ -50,7 +52,7 @@ export function Header() {
             </a>
             <button
               onClick={() => {
-                if (address) {
+                if (isConnected) {
                   setShowInventory(true);
                 } else {
                   toast.info("Connect your wallet");
@@ -61,16 +63,24 @@ export function Header() {
               Inventory
             </button>
 
-            {showInventory && (
-              <InventoryPopup
-                isOpen={showInventory}
-                onClose={() => setShowInventory(false)}
-              />
-            )}
+            <InventoryPopup
+              isOpen={showInventory}
+              onClose={() => setShowInventory(false)}
+            />
           </div>
         </div>
       </div>
-      <ToastContainer position="bottom-right" />
+      <ToastContainer 
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </header>
   );
 }
