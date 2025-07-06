@@ -15,7 +15,7 @@ type Metadata = {
 };
 
 export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
-  const metadataURI = `https://ipfs.io/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${id}.json`;
+  const metadataURI = `https://dweb.link/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/{id}.json`;
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [name, setName] = useState<string>(defaultName);
