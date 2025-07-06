@@ -1,4 +1,4 @@
-// InventoryPopup.tsx (updated with different decimal precision)
+// InventoryPopup.tsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog } from '@headlessui/react';
@@ -17,6 +17,31 @@ const formatExactDecimals = (value: number, decimals: number) => {
   const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
   const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
   return `${integerPart}.${decimalPart}`;
+};
+
+// Function to extract image URL from metadata
+const extractImageUrl = (nft: any) => {
+  // First try direct image_url fields
+  if (nft.image_url) return nft.image_url;
+  if (nft.token?.image_url) return nft.token.image_url;
+  
+  // Try parsing metadata JSON if available
+  if (nft.metadata) {
+    try {
+      const metadata = typeof nft.metadata === 'string' ? JSON.parse(nft.metadata) : nft.metadata;
+      if (metadata.image) return metadata.image;
+      if (metadata.image_url) return metadata.image_url;
+    } catch (e) {
+      console.warn('Failed to parse NFT metadata', e);
+    }
+  }
+  
+  // Fallback to Blockscout's image generation
+  if (nft.token?.address && nft.token_id) {
+    return `https://etc.blockscout.com/api/v2/tokens/${nft.token.address}/instance/${nft.token_id}/image`;
+  }
+  
+  return '';
 };
 
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
@@ -76,7 +101,14 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       const filtered = data.items?.filter((item: any) => 
         item.token.address.toLowerCase() === TARGET_CONTRACT.toLowerCase()
       );
-      setNfts(filtered || []);
+      
+      // Enhance NFTs with proper image URLs
+      const enhancedNFTs = (filtered || []).map(nft => ({
+        ...nft,
+        image_url: extractImageUrl(nft)
+      }));
+      
+      setNfts(enhancedNFTs);
     } catch (error) {
       console.error('Error fetching NFTs:', error);
     } finally {
@@ -153,7 +185,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
                   key={`${nft.token_id}-${nft.id}`}
                   id={nft.token_id || nft.id || 'N/A'}
                   name={nft.token?.name || 'ClassicBirds'}
-                  image_url={nft.image_url || nft.token?.image_url || ''}
+                  image_url={nft.image_url}
                 />
               ))}
             </div>
