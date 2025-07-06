@@ -57,7 +57,7 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
             className={`object-cover ${loading ? 'opacity-0' : 'opacity-100'}`}
             onError={handleError}
             onLoad={handleLoad}
-            unoptimized // Remove this if you want Next.js to optimize the images
+            unoptimized
           />
         )}
       </div>
