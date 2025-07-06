@@ -1,30 +1,30 @@
 // src/components/Header/Header.tsx
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import ConnectButton from "../connetbutton/ConnectButton";
-import InventoryPopup from "../Common/InventoryPopup";
-import { useAccount } from "wagmi";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import ConnectButton from '../connetbutton/ConnectButton';
+import InventoryPopup from '../Common/InventoryPopup';
+import { useAccount } from 'wagmi';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export function Header() {
   const [scrolling, setScrolling] = useState(false);
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const [showInventory, setShowInventory] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolling(window.scrollY > 100);
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
     <header
       className={`mx-auto sticky top-0 z-[100] w-full ${
-        scrolling ? "backdrop-blur-md" : ""
+        scrolling ? 'backdrop-blur-md' : ''
       }`}
     >
       <div className="!border-b !border-b-gray-800">
@@ -55,22 +55,28 @@ export function Header() {
                 if (isConnected) {
                   setShowInventory(true);
                 } else {
-                  toast.info("Connect your wallet");
+                  toast.info('Connect your wallet');
                 }
               }}
               className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
             >
               Inventory
             </button>
-
-            <InventoryPopup
-              isOpen={showInventory}
-              onClose={() => setShowInventory(false)}
-            />
           </div>
         </div>
       </div>
-      <ToastContainer 
+
+      <InventoryPopup
+        isOpen={showInventory}
+        onClose={() => setShowInventory(false)}
+      >
+        {/* Your inventory content goes here */}
+        <div className="text-center py-8">
+          <p className="text-gray-500">NFT inventory will be displayed here</p>
+        </div>
+      </InventoryPopup>
+
+      <ToastContainer
         position="bottom-right"
         autoClose={5000}
         hideProgressBar={false}
