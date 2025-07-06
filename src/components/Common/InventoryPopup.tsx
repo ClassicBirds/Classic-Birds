@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
 import { useAccount, useContractRead } from 'wagmi';
 import { ScaleLoader } from 'react-spinners';
 import { NFT_ADDR } from '@/config';
 import contractABI from '@/config/ABI/nft.json';
-import { ethers } from 'ethers';
+import { providers } from 'ethers';
 
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
@@ -59,8 +59,91 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     }
   });
 
-  // For fetching token URIs
-  const provider = new ethers.JsonRpcProvider("https://etc.rivet.cloud");
+  const fetchTokenURI = useCallback(async (tokenId: string): Promise<string> => {
+    try {
+      const provider = new providers.JsonRpcProvider("https://etc.rivet.cloud");
+      const contract = new providers.Contract(
+        TARGET_CONTRACT,
+        [
+          "function tokenURI(uint256 tokenId) external view returns (string memory)"
+        ],
+        provider
+      );
+      
+      const uri = await contract.tokenURI(tokenId);
+      return uri;
+    } catch (error) {
+      console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
+      throw error;
+    }
+  }, []);
+
+  const fetchMetadata = useCallback(async (tokenURI: string): Promise<any> => {
+    if (!tokenURI) throw new Error("Empty tokenURI");
+    
+    // Clean up the tokenURI
+    let cleanUri = tokenURI;
+    
+    // Remove 0x prefix if present
+    if (cleanUri.startsWith('0x')) {
+      cleanUri = cleanUri.substring(2);
+    }
+    
+    // Handle IPFS URIs
+    if (cleanUri.startsWith('ipfs://')) {
+      cleanUri = cleanUri.replace('ipfs://', '');
+    }
+    
+    // Handle direct IPFS hashes
+    if (cleanUri.startsWith('Qm') || cleanUri.startsWith('baf')) {
+      cleanUri = `ipfs/${cleanUri}`;
+    }
+    
+    // Try multiple gateways
+    const gateways = [
+      'https://ipfs.io',
+      'https://gateway.pinata.cloud',
+      'https://cloudflare-ipfs.com',
+      'https://dweb.link'
+    ];
+
+    let lastError: any = null;
+    
+    for (const gateway of gateways) {
+      try {
+        const url = `${gateway}/${cleanUri}`.replace(/([^:]\/)\/+/g, '$1');
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        lastError = error;
+        continue;
+      }
+    }
+    
+    throw lastError || new Error("All gateways failed");
+  }, []);
+
+  const processIpfsUrl = useCallback((url: string): string => {
+    if (!url) return "";
+    
+    // If it's already a HTTP URL, return as-is
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Handle IPFS URLs
+    if (url.startsWith('ipfs://')) {
+      return `https://ipfs.io/ipfs/${url.replace('ipfs://', '')}`;
+    }
+    
+    // Handle bare IPFS hashes
+    if (url.startsWith('Qm') || url.startsWith('baf')) {
+      return `https://ipfs.io/ipfs/${url}`;
+    }
+    
+    return url;
+  }, []);
 
   useEffect(() => {
     if (contractBalance && currentTokenId && totalBurned) {
@@ -138,92 +221,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     };
 
     if (isOpen) fetchNFTs();
-  }, [isOpen, address, refetchOwnedTokens]);
-
-  const fetchTokenURI = async (tokenId: string): Promise<string> => {
-    try {
-      const contract = new ethers.Contract(
-        TARGET_CONTRACT,
-        [
-          "function tokenURI(uint256 tokenId) external view returns (string memory)"
-        ],
-        provider
-      );
-      
-      const uri = await contract.tokenURI(tokenId);
-      return uri;
-    } catch (error) {
-      console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
-      throw error;
-    }
-  };
-
-  const fetchMetadata = async (tokenURI: string): Promise<any> => {
-    if (!tokenURI) throw new Error("Empty tokenURI");
-    
-    // Clean up the tokenURI
-    let cleanUri = tokenURI;
-    
-    // Remove 0x prefix if present
-    if (cleanUri.startsWith('0x')) {
-      cleanUri = cleanUri.substring(2);
-    }
-    
-    // Handle IPFS URIs
-    if (cleanUri.startsWith('ipfs://')) {
-      cleanUri = cleanUri.replace('ipfs://', '');
-    }
-    
-    // Handle direct IPFS hashes
-    if (cleanUri.startsWith('Qm') || cleanUri.startsWith('baf')) {
-      cleanUri = `ipfs/${cleanUri}`;
-    }
-    
-    // Try multiple gateways
-    const gateways = [
-      'https://ipfs.io',
-      'https://gateway.pinata.cloud',
-      'https://cloudflare-ipfs.com',
-      'https://dweb.link'
-    ];
-
-    let lastError: any = null;
-    
-    for (const gateway of gateways) {
-      try {
-        const url = `${gateway}/${cleanUri}`.replace(/([^:]\/)\/+/g, '$1');
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-      } catch (error) {
-        lastError = error;
-        continue;
-      }
-    }
-    
-    throw lastError || new Error("All gateways failed");
-  };
-
-  const processIpfsUrl = (url: string): string => {
-    if (!url) return "";
-    
-    // If it's already a HTTP URL, return as-is
-    if (url.startsWith('http')) {
-      return url;
-    }
-    
-    // Handle IPFS URLs
-    if (url.startsWith('ipfs://')) {
-      return `https://ipfs.io/ipfs/${url.replace('ipfs://', '')}`;
-    }
-    
-    // Handle bare IPFS hashes
-    if (url.startsWith('Qm') || url.startsWith('baf')) {
-      return `https://ipfs.io/ipfs/${url}`;
-    }
-    
-    return url;
-  };
+  }, [isOpen, address, refetchOwnedTokens, fetchTokenURI, fetchMetadata, processIpfsUrl]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
