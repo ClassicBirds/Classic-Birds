@@ -15,7 +15,8 @@ type Metadata = {
 
 const WORKING_GATEWAYS = [
   'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/'
+  'https://dweb.link/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/'
 ];
 
 const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
@@ -120,7 +121,7 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
         )}
       </div>
       <div className="p-3 bg-white">
-        <h3 className="font-medium text-gray-900 truncate max-w-[120px]">{name}</h3>
+        <h3 className="font-medium text-gray-900 ">{name}</h3>
         <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
         {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
