@@ -1,6 +1,6 @@
 // NFTCard.tsx
 import React from 'react';
-import LazyloadImage from './LazyloadImage';
+import LazyloadImage from '../Lazyload/LazyloadImage';
 
 export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
   // Clean up the image URL
