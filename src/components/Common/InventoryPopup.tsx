@@ -1,132 +1,110 @@
 import React, { useEffect, useState } from 'react';
+import { Dialog } from '@headlessui/react';
+import NFTCard from './NFTCard';
+import { useAccount } from 'wagmi';
 import axios from 'axios';
-import Image from 'next/image';
+import { ScaleLoader } from 'react-spinners';
 
-type NFTCardProps = {
+type NFTItem = {
   id: string;
-  name: string;
+  token_id: string;
+  token: {
+    address: string;
+    name: string;
+  };
 };
 
-type Metadata = {
-  image: string;
-  name: string;
-  description?: string;
+type InventoryPopupProps = {
+  isOpen: boolean;
+  onClose: () => void;
 };
 
-const WORKING_GATEWAYS = [
-  'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/'
-];
+const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 
-const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
-const IMAGE_CID = 'bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi';
+export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps) {
+  const { address } = useAccount();
+  const [nfts, setNfts] = useState<NFTItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-// NEW: Function to clean up IPFS URLs
-const cleanIpfsUrl = (url: string): string => {
-  // Remove any gateway prefixes if they exist
-  if (url.includes('gateway.pinata.cloud/ipfs/')) {
-    return url.split('ipfs/')[1];
-  }
-  // Handle ipfs:// format
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', '');
-  }
-  // Return as-is if already clean
-  return url;
-};
-
-export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
-  const [imageUrl, setImageUrl] = useState<string>('/placeholder-nft.png');
-  const [name, setName] = useState<string>(defaultName);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const getWorkingUrl = async (cidPath: string, isImage = false) => {
-    for (const gateway of WORKING_GATEWAYS) {
-      try {
-        // NEW: Clean the CID path before using it
-        const cleanPath = cleanIpfsUrl(cidPath);
-        const url = `${gateway}${cleanPath}`;
-        
-        if (isImage) {
-          await axios.head(url, { timeout: 3000 });
-          return url;
-        } else {
-          const response = await axios.get(url, { timeout: 3000 });
-          return response.data;
-        }
-      } catch (err) {
-        continue;
-      }
+  const fetchNFTs = async () => {
+    if (!address) return;
+    setLoading(true);
+    try {
+      const { data } = await axios.get(
+        `https://etc.blockscout.com/api/v2/addresses/${address}/nft?type=ERC-721`
+      );
+      const filtered = data.items?.filter(
+        (item: any) => item.token.address.toLowerCase() === TARGET_CONTRACT.toLowerCase()
+      );
+      setNfts(filtered || []);
+    } catch (error) {
+      console.error('Error fetching NFTs:', error);
+    } finally {
+      setLoading(false);
     }
-    throw new Error('All gateways failed');
   };
 
   useEffect(() => {
-    const loadNFT = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Try metadata first
-        try {
-          const metadata = await getWorkingUrl(`${METADATA_CID}/${id}.json`);
-          if (metadata?.image) {
-            // NEW: Clean the image URL before using it
-            const imagePath = cleanIpfsUrl(metadata.image);
-            const imageUrl = await getWorkingUrl(imagePath, true);
-            setImageUrl(imageUrl);
-            setName(metadata.name || defaultName);
-            return;
-          }
-        } catch (e) {
-          console.warn(`Metadata load failed for ${id}`);
-        }
-
-        // Fallback to direct image path
-        const directImageUrl = await getWorkingUrl(`${IMAGE_CID}/${id}.png`, true);
-        setImageUrl(directImageUrl);
-
-      } catch (error) {
-        console.error(`Error loading NFT #${id}:`, error);
-        setError('Failed to load NFT data');
-        setImageUrl('/placeholder-nft.png');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadNFT();
-  }, [id, defaultName]);
+    if (isOpen) fetchNFTs();
+  }, [isOpen, address]);
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
-        {loading ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="animate-pulse flex space-x-4">
-              <div className="rounded-full bg-gray-300 h-12 w-12"></div>
-            </div>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      className="relative z-[100]"
+    >
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
+      
+      {/* Panel container */}
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-2 bg-transparent">
+            <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
+              Your NFT Inventory
+            </Dialog.Title>
           </div>
-        ) : (
-          <Image
-            src={imageUrl}
-            alt={`${name} (Token #${id})`}
-            fill
-            className="object-cover"
-            unoptimized
-            onError={() => {
-              setError('Image failed to load');
-              setImageUrl('/placeholder-nft.png');
-            }}
-          />
-        )}
+          
+          {/* Loading state */}
+          {loading && (
+            <div className="flex justify-center items-center py-12">
+              <ScaleLoader color="#3B82F6" />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && nfts.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No NFTs found in your wallet.
+            </div>
+          )}
+
+          {/* NFT Grid */}
+          {!loading && nfts.length > 0 && (
+            <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-6">
+              {nfts.map((nft) => (
+                <NFTCard
+                  key={nft.token_id || nft.id}
+                  id={nft.token_id || nft.id || 'N/A'}
+                  name={nft.token?.name || 'NFT'}
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Close button */}
+          <div className="px-6 pb-6 pt-2">
+            <button 
+              onClick={onClose}
+              className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </Dialog.Panel>
       </div>
-      <div className="p-3 bg-white">
-        <h3 className="font-medium text-gray-900 truncate">{name}</h3>
-        <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-      </div>
-    </div>
+    </Dialog>
   );
 }
