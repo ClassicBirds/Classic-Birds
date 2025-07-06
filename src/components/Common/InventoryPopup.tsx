@@ -16,7 +16,6 @@ const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
 const chainId = 61;
 
-// Configure the ETC provider with proper network settings
 const getETCProvider = () => {
   return new ethers.providers.JsonRpcProvider(
     "https://etc.rivet.link",
@@ -65,7 +64,6 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     chainId,
   });
 
-  // Read from wallet tracker contract
   const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
     address: WALLET_TRACKER_CONTRACT,
     abi: contractABI,
@@ -102,7 +100,6 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
         provider
       );
       
-      // Add timeout to prevent hanging requests
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), 10000)
       );
@@ -120,12 +117,16 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const fetchMetadata = async (tokenURI: string): Promise<any> => {
     if (!tokenURI) throw new Error("Empty tokenURI");
     
-    // Clean up the tokenURI - remove null bytes and trim
+    // Clean up the tokenURI
     let cleanUri = tokenURI.replace(/\0+$/, '').trim();
 
     // Check if it's already a full HTTP URL
     if (cleanUri.startsWith('http')) {
-      // If it's already a complete gateway URL, use it directly
+      // Add .png extension if missing and looks like an image path
+      if (!cleanUri.match(/\.(png|jpg|jpeg|gif|webp)$/i) && cleanUri.match(/\/\d+$/)) {
+        cleanUri += '.png';
+      }
+      
       try {
         const response = await fetch(cleanUri);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -136,13 +137,12 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       }
     }
 
-    // Handle IPFS hashes (both with and without ipfs:// prefix)
+    // Handle IPFS hashes
     let ipfsHash = cleanUri
       .replace(/^ipfs:\/\//, '')
       .replace(/^https:\/\/gateway\.pinata\.cloud\/ipfs\//, '')
       .replace(/^https:\/\/(.*?)\/ipfs\//, '');
 
-    // List of IPFS gateways to try (in order)
     const gateways = [
       'https://ipfs.io/ipfs/',
       'https://cloudflare-ipfs.com/ipfs/',
@@ -154,7 +154,13 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     let lastError: any = null;
     
     for (const gateway of gateways) {
-      const url = `${gateway}${ipfsHash}`;
+      let url = `${gateway}${ipfsHash}`;
+      
+      // Add .png extension if needed
+      if (!url.match(/\.(png|jpg|jpeg|gif|webp)$/i) && url.match(/\/\d+$/)) {
+        url += '.png';
+      }
+
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
@@ -197,7 +203,6 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
           return;
         }
 
-        // Fetch metadata for each token
         const nftPromises = tokenIds.map(async (tokenId) => {
           const tokenIdStr = tokenId.toString();
           try {
