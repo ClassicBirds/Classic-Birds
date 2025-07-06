@@ -69,12 +69,7 @@ export function Header() {
       <InventoryPopup
         isOpen={showInventory}
         onClose={() => setShowInventory(false)}
-      >
-        {/* Your inventory content goes here */}
-        <div className="text-center py-8">
-          <p className="text-gray-500">NFT inventory will be displayed here</p>
-        </div>
-      </InventoryPopup>
+      />
 
       <ToastContainer
         position="bottom-right"
