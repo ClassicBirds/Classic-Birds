@@ -60,7 +60,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: !!address && isOpen,
+    query: {
+      enabled: !!address && isOpen,
+    },
   });
 
   useEffect(() => {
