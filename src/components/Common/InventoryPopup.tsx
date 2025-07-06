@@ -1,7 +1,7 @@
 // src/components/Common/InventoryPopup.tsx
 import { Dialog } from '@headlessui/react';
-import React, { useEffect, useState } from 'react';
-import { useAccount, useContractRead } from 'wagmi';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useAccount, useReadContract } from 'wagmi';
 import { ethers } from 'ethers';
 import { ScaleLoader } from 'react-spinners';
 import NFTCard from './NFTCard';
@@ -13,17 +13,38 @@ interface InventoryPopupProps {
   onClose: () => void;
 }
 
+interface NFT {
+  token_id: string;
+  token: {
+    address: string;
+    name: string;
+    image_url: string;
+  };
+  image_url: string;
+}
+
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
 const chainId = 61;
 
 export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps) {
   const { address } = useAccount();
-  const [nfts, setNfts] = useState<any[]>([]);
+  const [nfts, setNfts] = useState<NFT[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getETCProvider = () => {
+  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useReadContract({
+    address: WALLET_TRACKER_CONTRACT as `0x${string}`,
+    abi: contractABI,
+    functionName: "walletOfOwner",
+    args: [address],
+    chainId,
+    query: {
+      enabled: !!address && isOpen,
+    },
+  });
+
+  const getETCProvider = useCallback(() => {
     return new ethers.providers.JsonRpcProvider(
       "https://etc.rivet.link",
       {
@@ -32,18 +53,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
         ensAddress: undefined
       }
     );
-  };
+  }, []);
 
-  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
-    address: WALLET_TRACKER_CONTRACT,
-    abi: contractABI,
-    functionName: "walletOfOwner",
-    args: [address],
-    chainId,
-    enabled: !!address && isOpen,
-  });
-
-  const fetchTokenURI = async (tokenId: string): Promise<string> => {
+  const fetchTokenURI = useCallback(async (tokenId: string): Promise<string> => {
     try {
       const provider = getETCProvider();
       const contract = new ethers.Contract(
@@ -58,9 +70,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
       throw error;
     }
-  };
+  }, [getETCProvider]);
 
-  const fetchMetadata = async (tokenURI: string): Promise<any> => {
+  const fetchMetadata = useCallback(async (tokenURI: string): Promise<any> => {
     if (!tokenURI) return {
       name: 'ClassicBirds',
       image: '/placeholder-nft.png'
@@ -80,13 +92,13 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       const metadata = await response.json();
       let imageUrl = metadata.image;
       
-      if (imageUrl.startsWith('ipfs://')) {
+      if (imageUrl?.startsWith('ipfs://')) {
         imageUrl = `https://ipfs.io/ipfs/${imageUrl.replace('ipfs://', '')}`;
       }
 
       return {
         ...metadata,
-        image: imageUrl
+        image: imageUrl || '/placeholder-nft.png'
       };
     } catch (error) {
       console.error('Error fetching metadata:', error);
@@ -95,7 +107,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
         image: '/placeholder-nft.png'
       };
     }
-  };
+  }, []);
 
   useEffect(() => {
     const fetchNFTs = async () => {
@@ -126,9 +138,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
               token: {
                 address: TARGET_CONTRACT,
                 name: metadata.name || `ClassicBirds #${tokenIdStr}`,
-                image_url: metadata.image || metadata.image_url || '/placeholder-nft.png'
+                image_url: metadata.image || '/placeholder-nft.png'
               },
-              image_url: metadata.image || metadata.image_url || '/placeholder-nft.png'
+              image_url: metadata.image || '/placeholder-nft.png'
             };
           } catch (e) {
             console.error(`Failed to fetch metadata for token ${tokenIdStr}`, e);
@@ -155,7 +167,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     };
 
     if (isOpen) fetchNFTs();
-  }, [isOpen, address, refetchOwnedTokens]);
+  }, [isOpen, address, refetchOwnedTokens, fetchTokenURI, fetchMetadata]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
