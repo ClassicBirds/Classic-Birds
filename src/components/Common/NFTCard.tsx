@@ -7,9 +7,27 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!image_url) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
+
     setImgSrc(image_url);
     setLoading(true);
     setError(false);
+    
+    // Preload the image to check if it's valid
+    const img = new window.Image();
+    img.src = image_url;
+    img.onload = () => {
+      setLoading(false);
+      setError(false);
+    };
+    img.onerror = () => {
+      setError(true);
+      setLoading(false);
+    };
   }, [image_url]);
 
   const handleError = () => {
@@ -34,7 +52,7 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
         )}
 
         {error && (
-          <div className="flex flex-col items-center justify-center p-4 text-center">
+          <div className="flex flex-col items-center justify-center p-4 text-center h-full">
             <span className="text-gray-400 mb-2">Image not available</span>
             <button 
               onClick={() => {
@@ -58,6 +76,7 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
             onError={handleError}
             onLoad={handleLoad}
             unoptimized
+            priority={false}
           />
         )}
       </div>
