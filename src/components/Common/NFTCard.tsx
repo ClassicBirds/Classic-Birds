@@ -1,57 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { convertIpfsUri } from '@/utils/ipfsConverter';
+// NFTCard.tsx
+import React from 'react';
 
-type NFTCardProps = {
-  id: string;
-  name: string;
-};
-
-type Metadata = {
-  image: string;
-  name: string;
-  description?: string;
-};
-
-export default function NFTCard({ id }: NFTCardProps) {
-  const metadataURI = `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${id}.json`;
-
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [name,setName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const { data } = await axios.get<Metadata>(metadataURI);
-        setImageUrl(data.image);
-        setName(data.name);
-
-      } catch (error) {
-        console.error(`Error fetching metadata for token ${id}:`, error);
-        setImageUrl(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetadata();
-  }, [metadataURI, id]);
-
+export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
   return (
-    <div className="p-3 border rounded-xl text-center cursor-pointer">
-      {loading ? (
-        <div className="w-full h-32 bg-gray-100 flex items-center justify-center rounded">Loading...</div>
-      ) : imageUrl ? (
-        <img
-          src={convertIpfsUri(imageUrl)}
-          alt={`NFT ${id}`}
-          className="w-full hover:scale-105 transition-all object-cover rounded"
-        />
-      ) : (
-        <div className="w-full h-32 bg-gray-200 flex items-center justify-center rounded">No Image</div>
-      )}
-      <div className="mt-2 font-medium">{name} </div>
+    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div className="aspect-square bg-gray-100 flex items-center justify-center">
+        {image_url ? (
+          <img 
+            src={image_url} 
+            alt={name} 
+            className="object-cover w-full h-full"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/placeholder-nft.png';
+              (e.target as HTMLImageElement).className = 'object-contain w-full h-full p-4';
+            }}
+          />
+        ) : (
+          <span className="text-gray-400">Refresh Metadata</span>
+        )}
+      </div>
+      <div className="p-3 bg-white">
+        <h3 className="font-medium text-gray-900 truncate">{name}</h3>
+        <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
+      </div>
     </div>
   );
 }
