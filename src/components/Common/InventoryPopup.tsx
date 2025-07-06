@@ -61,7 +61,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
 
   const fetchTokenURI = useCallback(async (tokenId: string): Promise<string> => {
     try {
-      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.link");
+      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.cloud");
       const contract = new ethers.Contract(
         TARGET_CONTRACT,
         [
@@ -82,39 +82,41 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     if (!tokenURI) throw new Error("Empty tokenURI");
     
     // Clean up the tokenURI
-    let cleanUri = tokenURI;
-    
-    // Remove 0x prefix if present
-    if (cleanUri.startsWith('0x')) {
-      cleanUri = cleanUri.substring(2);
-    }
-    
-    // Handle IPFS URIs
-    if (cleanUri.startsWith('ipfs://')) {
-      cleanUri = cleanUri.replace('ipfs://', '');
-    }
-    
-    // Handle direct IPFS hashes
+    let cleanUri = tokenURI
+      .replace(/^0x/, '')
+      .replace(/^ipfs:\/\//, '')
+      .replace(/\0+$/, '')
+      .trim();
+
+    // Handle case where URI is just the IPFS hash
     if (cleanUri.startsWith('Qm') || cleanUri.startsWith('baf')) {
       cleanUri = `ipfs/${cleanUri}`;
     }
-    
-    // Try multiple gateways
+
+    // Try multiple gateways with different formats
     const gateways = [
-      'https://ipfs.io',
-      'https://gateway.pinata.cloud',
-      'https://cloudflare-ipfs.com',
-      'https://dweb.link'
+      `https://ipfs.io/ipfs/${cleanUri}`,
+      `https://cloudflare-ipfs.com/ipfs/${cleanUri}`,
+      `https://gateway.pinata.cloud/ipfs/${cleanUri}`,
+      `https://dweb.link/ipfs/${cleanUri}`,
+      `https://${cleanUri}.ipfs.dweb.link`,
+      `https://ipfs.filebase.io/ipfs/${cleanUri}`,
     ];
 
     let lastError: any = null;
     
-    for (const gateway of gateways) {
+    for (const url of gateways) {
       try {
-        const url = `${gateway}/${cleanUri}`.replace(/([^:]\/)\/+/g, '$1');
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
+        const metadata = await response.json();
+        
+        // Verify metadata has required fields
+        if (!metadata.image && !metadata.image_url) {
+          throw new Error("Metadata missing image field");
+        }
+        
+        return metadata;
       } catch (error) {
         lastError = error;
         continue;
@@ -132,14 +134,18 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       return url;
     }
     
-    // Handle IPFS URLs
+    // Handle IPFS URLs in various formats
     if (url.startsWith('ipfs://')) {
       return `https://ipfs.io/ipfs/${url.replace('ipfs://', '')}`;
     }
     
-    // Handle bare IPFS hashes
     if (url.startsWith('Qm') || url.startsWith('baf')) {
       return `https://ipfs.io/ipfs/${url}`;
+    }
+    
+    // Handle CIDv1 in subdomain format
+    if (url.includes('.ipfs.')) {
+      return `https://ipfs.io/ipfs/${url.split('.ipfs.')[0]}`;
     }
     
     return url;
@@ -187,14 +193,20 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             const tokenURI = await fetchTokenURI(tokenIdStr);
             // Then fetch metadata from IPFS
             const metadata = await fetchMetadata(tokenURI);
+            
+            const imageUrl = metadata.image || metadata.image_url;
+            if (!imageUrl) {
+              throw new Error("No image URL found in metadata");
+            }
+            
             return {
               token_id: tokenIdStr,
               token: {
                 address: TARGET_CONTRACT,
                 name: metadata.name || "ClassicBirds",
-                image_url: processIpfsUrl(metadata.image || metadata.image_url)
+                image_url: processIpfsUrl(imageUrl)
               },
-              image_url: processIpfsUrl(metadata.image || metadata.image_url)
+              image_url: processIpfsUrl(imageUrl)
             };
           } catch (e) {
             console.error(`Failed to fetch metadata for token ${tokenIdStr}`, e);
@@ -222,6 +234,20 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
 
     if (isOpen) fetchNFTs();
   }, [isOpen, address, refetchOwnedTokens, fetchTokenURI, fetchMetadata, processIpfsUrl]);
+
+  // Debug logging
+  useEffect(() => {
+    if (nfts.length > 0) {
+      console.log("NFT Data:", nfts);
+      nfts.forEach(nft => {
+        console.log(`NFT ${nft.token_id}:`, {
+          name: nft.token.name,
+          image_url: nft.image_url,
+          processed_url: processIpfsUrl(nft.image_url)
+        });
+      });
+    }
+  }, [nfts, processIpfsUrl]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
