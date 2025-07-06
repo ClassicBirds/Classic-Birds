@@ -5,7 +5,6 @@ import { useAccount, useContractRead } from 'wagmi';
 import { ScaleLoader } from 'react-spinners';
 import { NFT_ADDR } from '@/config';
 import contractABI from '@/config/ABI/nft.json';
-import { ethers } from 'ethers';
 
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
@@ -54,7 +53,9 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: !!address && isOpen,
+    query: {
+      enabled: !!address && isOpen,
+    }
   });
 
   useEffect(() => {
@@ -136,25 +137,16 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   }, [isOpen, address, refetchOwnedTokens]);
 
   const fetchTokenURI = async (tokenId: string): Promise<string> => {
-    // Create a provider for Ethereum Classic
-    const provider = new ethers.JsonRpcProvider("https://etc.rivet.cloud");
+    const { data } = await useContractRead({
+      address: TARGET_CONTRACT,
+      abi: contractABI,
+      functionName: "tokenURI",
+      args: [tokenId],
+      chainId,
+    });
     
-    // Create contract instance
-    const contract = new ethers.Contract(
-      TARGET_CONTRACT,
-      [
-        "function tokenURI(uint256 tokenId) external view returns (string memory)"
-      ],
-      provider
-    );
-
-    try {
-      const uri = await contract.tokenURI(tokenId);
-      return uri;
-    } catch (error) {
-      console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
-      throw error;
-    }
+    if (!data) throw new Error("No token URI found");
+    return data as string;
   };
 
   const fetchMetadata = async (tokenURI: string): Promise<any> => {
