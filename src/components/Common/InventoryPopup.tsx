@@ -83,7 +83,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
 
   const fetchTokenURI = async (tokenId: string): Promise<string> => {
     try {
-      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.cloud");
+      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.link");
       const contract = new ethers.Contract(
         TARGET_CONTRACT,
         ["function tokenURI(uint256 tokenId) external view returns (string memory)"],
