@@ -1,22 +1,56 @@
 // NFTCard.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { convertIpfsUri } from '@/utils/ipfsConverter';
 
-export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
+type NFTCardProps = {
+  id: string;
+  name: string;
+};
+
+type Metadata = {
+  image: string;
+  name: string;
+  description?: string;
+};
+
+export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
+  const metadataURI = `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${id}.json`;
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [name, setName] = useState<string>(defaultName);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const { data } = await axios.get<Metadata>(metadataURI);
+        setImageUrl(data.image);
+        setName(data.name || defaultName);
+      } catch (error) {
+        console.error(`Error fetching metadata for token ${id}:`, error);
+        setImageUrl(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [metadataURI, id, defaultName]);
+
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="aspect-square bg-gray-100 flex items-center justify-center">
-        {image_url ? (
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center">Loading...</div>
+        ) : imageUrl ? (
           <img 
-            src={image_url} 
+            src={convertIpfsUri(imageUrl)} 
             alt={name} 
             className="object-cover w-full h-full"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/placeholder-nft.png';
-              (e.target as HTMLImageElement).className = 'object-contain w-full h-full p-4';
-            }}
           />
         ) : (
-          <span className="text-gray-400">Refresh Metadata</span>
+          <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
         )}
       </div>
       <div className="p-3 bg-white">
