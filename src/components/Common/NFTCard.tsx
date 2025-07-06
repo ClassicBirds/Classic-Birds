@@ -58,7 +58,7 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
         continue;
       }
     }
-    throw new Error('All gateways failed');
+    throw new Error('All gateway failed');
   };
 
   useEffect(() => {
