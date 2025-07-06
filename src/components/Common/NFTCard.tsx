@@ -14,8 +14,6 @@ type Metadata = {
 };
 
 const IPFS_GATEWAYS = [
-  'https://ipfs.io/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
   'https://dweb.link/ipfs/',
   'https://nftstorage.link/ipfs/',
   'https://cf-ipfs.com/ipfs/'
