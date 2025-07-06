@@ -1,27 +1,21 @@
 import React from 'react';
-import Image from 'next/image';
 
 export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
+      <div className="aspect-square bg-gray-100 flex items-center justify-center">
         {image_url ? (
-          <Image
-            src={image_url}
-            alt={name}
-            fill
-            className="object-cover"
-            unoptimized
+          <img 
+            src={image_url} 
+            alt={name} 
+            className="object-cover w-full h-full"
             onError={(e) => {
-              // Fallback to placeholder if image fails to load
               (e.target as HTMLImageElement).src = '/placeholder-nft.png';
-              (e.target as HTMLImageElement).className = 'object-contain p-4';
+              (e.target as HTMLImageElement).className = 'object-contain w-full h-full p-4';
             }}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center p-4 text-center">
-            <span className="text-gray-400">No image available</span>
-          </div>
+          <span className="text-gray-400">Refresh Metadata</span>
         )}
       </div>
       <div className="p-3 bg-white">
