@@ -1,4 +1,3 @@
-// Updated InventoryPopup.tsx with improved image handling
 import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
@@ -11,32 +10,11 @@ const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
 const chainId = 61;
 
-// Utility function for exact decimal formatting without rounding
 const formatExactDecimals = (value: number, decimals: number) => {
   const parts = value.toString().split('.');
   const integerPart = new Intl.NumberFormat('en-US').format(parseInt(parts[0]));
   const decimalPart = parts[1] ? parts[1].substring(0, decimals).padEnd(decimals, '0') : '0'.repeat(decimals);
   return `${integerPart}.${decimalPart}`;
-};
-
-// Centralized function to get image URL with fallbacks
-const getImageUrl = (tokenId: string): string => {
-  try {
-    // Try Pinata gateway first
-    const pinataUrl = `https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`;
-    
-    // Add alternative IPFS gateways as fallbacks
-    const fallbackUrls = [
-      `https://ipfs.io/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`,
-      `https://cloudflare-ipfs.com/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`,
-      `https://dweb.link/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${tokenId}.png`
-    ];
-
-    // Return the first URL that works (client-side will handle fallback in NFTCard)
-    return pinataUrl;
-  } catch (e) {
-    return ''; // Return empty string if URL construction fails
-  }
 };
 
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
@@ -47,7 +25,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Contract reads from NFT contract
+  // Contract reads
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -69,8 +47,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     chainId,
   });
 
-  // Read walletOfOwner from the separate contract
-  const { data: ownedTokenIds, refetch: refetchOwnedTokens, isLoading: isFetchingTokens } = useContractRead({
+  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useContractRead({
     address: WALLET_TRACKER_CONTRACT,
     abi: contractABI,
     functionName: "walletOfOwner",
@@ -78,27 +55,22 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
     chainId,
   });
 
-  // Calculate reward per NFT
   useEffect(() => {
     if (contractBalance && currentTokenId && totalBurned) {
       const balanceInETC = Number(contractBalance) / 1e18;
       const activeNFTs = Number(currentTokenId) - 1 - Number(totalBurned);
-      const calculatedReward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
-      setRewardPerNFT(calculatedReward);
+      setRewardPerNFT(activeNFTs > 0 ? balanceInETC / activeNFTs : 0);
     }
   }, [contractBalance, currentTokenId, totalBurned]);
 
-  // Calculate wallet worth
   useEffect(() => {
     if (rewardPerNFT > 0 && nfts.length > 0) {
-      const totalWorth = rewardPerNFT * nfts.length;
-      setWalletWorth(totalWorth);
+      setWalletWorth(rewardPerNFT * nfts.length);
     } else {
       setWalletWorth(0);
     }
   }, [rewardPerNFT, nfts]);
 
-  // Fetch NFTs when the popup opens or address changes
   useEffect(() => {
     const fetchNFTs = async () => {
       if (!address || !isOpen) return;
@@ -107,35 +79,48 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       setError(null);
 
       try {
-        // Get token IDs from walletOfOwner
         const response = await refetchOwnedTokens();
         
-        if (response.error) {
-          throw response.error;
-        }
+        if (response.error) throw response.error;
 
         const tokenIds = response.data as bigint[];
-        
         if (!tokenIds || tokenIds.length === 0) {
           setNfts([]);
           return;
         }
 
-        // Format the token IDs into NFT objects
-        const formattedNFTs = tokenIds.map((tokenId) => {
-          const id = tokenId.toString();
-          const imageUrl = getImageUrl(id);
-          return {
-            token_id: id,
-            token: {
-              address: TARGET_CONTRACT,
-              name: "ClassicBirds",
-              image_url: imageUrl
-            },
-            image_url: imageUrl
-          };
+        // Fetch metadata for each token
+        const nftPromises = tokenIds.map(async (tokenId) => {
+          const tokenIdStr = tokenId.toString();
+          try {
+            // First get tokenURI from contract
+            const tokenURI = await fetchTokenURI(tokenIdStr);
+            // Then fetch metadata from IPFS
+            const metadata = await fetchMetadata(tokenURI);
+            return {
+              token_id: tokenIdStr,
+              token: {
+                address: TARGET_CONTRACT,
+                name: metadata.name || "ClassicBirds",
+                image_url: processIpfsUrl(metadata.image)
+              },
+              image_url: processIpfsUrl(metadata.image)
+            };
+          } catch (e) {
+            console.error(`Failed to fetch metadata for token ${tokenIdStr}`, e);
+            return {
+              token_id: tokenIdStr,
+              token: {
+                address: TARGET_CONTRACT,
+                name: "ClassicBirds",
+                image_url: ""
+              },
+              image_url: ""
+            };
+          }
         });
 
+        const formattedNFTs = await Promise.all(nftPromises);
         setNfts(formattedNFTs);
       } catch (err) {
         console.error('Error fetching NFTs:', err);
@@ -145,40 +130,52 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       }
     };
 
-    if (isOpen) {
-      fetchNFTs();
-    }
+    if (isOpen) fetchNFTs();
   }, [isOpen, address, refetchOwnedTokens]);
+
+  const fetchTokenURI = async (tokenId: string): Promise<string> => {
+    const response = await fetch(`https://api.etherscan.io/api?module=proxy&action=eth_call&to=${TARGET_CONTRACT}&data=0xc87b56dd${tokenId.padStart(64, '0')}&tag=latest`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.result;
+  };
+
+  const fetchMetadata = async (tokenURI: string): Promise<any> => {
+    // Clean up the tokenURI (remove 0x and ipfs:// prefix if present)
+    const cleanUri = tokenURI.replace(/^0x/, '')
+                            .replace(/^ipfs:\/\//, '')
+                            .replace(/^\/\/ipfs.io\/ipfs\//, '');
+    const url = `https://ipfs.io/ipfs/${cleanUri}`;
+    const response = await fetch(url);
+    return await response.json();
+  };
+
+  const processIpfsUrl = (url: string): string => {
+    if (!url) return "";
+    return url.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
+              .replace(/^\/\/ipfs.io\/ipfs\//, 'https://ipfs.io/ipfs/');
+  };
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
-      
-      {/* Panel container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-          {/* Header */}
           <div className="px-6 pt-6 pb-2 bg-transparent">
             <Dialog.Title className="text-2xl font-bold text-center text-gray-900">
               Your Birds Nest
             </Dialog.Title>
           </div>
           
-          {/* Error message */}
           {error && (
             <div className="mx-6 mt-4 p-3 bg-red-100 text-red-700 rounded-lg">
               {error}
-              <button 
-                onClick={() => refetchOwnedTokens()} 
-                className="ml-2 text-red-800 font-semibold hover:underline"
-              >
+              <button onClick={() => refetchOwnedTokens()} className="ml-2 text-red-800 font-semibold hover:underline">
                 Retry
               </button>
             </div>
           )}
 
-          {/* Wallet Summary */}
           {!loading && nfts.length > 0 && (
             <div className="mb-4 mx-6 p-4 bg-gray-100 rounded-lg border border-gray-200">
               <div className="flex justify-between items-center mb-2">
@@ -202,22 +199,19 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             </div>
           )}
 
-          {/* Loading state */}
-          {(loading || isFetchingTokens) && (
+          {(loading) && (
             <div className="flex justify-center items-center py-12">
               <ScaleLoader color="#3B82F6" />
               <span className="ml-3 text-gray-600">Loading NFTs...</span>
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && nfts.length === 0 && !error && (
             <div className="text-center py-12 text-gray-500">
               No NFTs found in your wallet.
             </div>
           )}
 
-          {/* NFT Grid */}
           {!loading && nfts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-6 pt-0">
               {nfts.map((nft) => (
@@ -231,7 +225,6 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
             </div>
           )}
           
-          {/* Close button */}
           <div className="px-6 pb-6 pt-2">
             <button 
               onClick={onClose} 
