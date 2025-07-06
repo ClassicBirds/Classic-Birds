@@ -13,57 +13,77 @@ type Metadata = {
   description?: string;
 };
 
-const IPFS_GATEWAYS = [
-  'https://dweb.link/ipfs/',
+const WORKING_GATEWAYS = [
   'https://nftstorage.link/ipfs/',
-  'https://cf-ipfs.com/ipfs/'
+  'https://dweb.link/ipfs/'
 ];
 
+const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
+const IMAGE_CID = 'bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi';
+
 export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>('/placeholder-nft.png');
   const [name, setName] = useState<string>(defaultName);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getRandomGateway = () => {
-    return IPFS_GATEWAYS[Math.floor(Math.random() * IPFS_GATEWAYS.length)];
+  const getWorkingUrl = async (cidPath: string, isImage = false) => {
+    for (const gateway of WORKING_GATEWAYS) {
+      try {
+        const url = `${gateway}${cidPath}`;
+        if (isImage) {
+          // Verify image exists
+          await axios.head(url, { timeout: 3000 });
+          return url;
+        } else {
+          // Fetch metadata
+          const response = await axios.get(url, { timeout: 3000 });
+          return response.data;
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+    throw new Error('All gateways failed');
   };
 
   useEffect(() => {
-    const fetchMetadata = async () => {
+    const loadNFT = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // Try fetching metadata first
-        const metadataUrl = `${getRandomGateway()}bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq/${id}.json`;
-        const { data: metadata } = await axios.get<Metadata>(metadataUrl);
-        
-        if (metadata?.image) {
-          // Process the image URL
-          let imagePath = metadata.image;
-          if (imagePath.startsWith('ipfs://')) {
-            imagePath = imagePath.replace('ipfs://', '');
+
+        // Try metadata first
+        try {
+          const metadata = await getWorkingUrl(`${METADATA_CID}/${id}.json`);
+          if (metadata?.image) {
+            let imagePath = metadata.image;
+            if (imagePath.startsWith('ipfs://')) {
+              imagePath = imagePath.replace('ipfs://', '');
+            }
+            const imageUrl = await getWorkingUrl(imagePath, true);
+            setImageUrl(imageUrl);
+            setName(metadata.name || defaultName);
+            return;
           }
-          setImageUrl(`${getRandomGateway()}${imagePath}`);
-          setName(metadata.name || defaultName);
-          return;
+        } catch (e) {
+          console.warn(`Metadata load failed for ${id}`);
         }
 
-        // Fallback to direct image path if metadata fails
-        const fallbackImageUrl = `${getRandomGateway()}bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi/${id}.png`;
-        setImageUrl(fallbackImageUrl);
+        // Fallback to direct image path
+        const directImageUrl = await getWorkingUrl(`${IMAGE_CID}/${id}.png`, true);
+        setImageUrl(directImageUrl);
 
       } catch (error) {
         console.error(`Error loading NFT #${id}:`, error);
-        setError(error instanceof Error ? error.message : 'Unknown error');
-        setImageUrl(null);
+        setError('Failed to load NFT data');
+        setImageUrl('/placeholder-nft.png');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMetadata();
+    loadNFT();
   }, [id, defaultName]);
 
   return (
@@ -75,32 +95,24 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
               <div className="rounded-full bg-gray-300 h-12 w-12"></div>
             </div>
           </div>
-        ) : error ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
-            <span className="text-red-500 mb-2">⚠️ Error</span>
-            <span className="text-xs text-gray-600">{error}</span>
-          </div>
-        ) : imageUrl ? (
+        ) : (
           <Image
             src={imageUrl}
             alt={`${name} (Token #${id})`}
             fill
             className="object-cover"
-            unoptimized={true} // Temporary fix for IPFS images
+            unoptimized // Required for IPFS images
             onError={() => {
               setError('Image failed to load');
-              setImageUrl(null);
+              setImageUrl('/placeholder-nft.png');
             }}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            No image available
-          </div>
         )}
       </div>
       <div className="p-3 bg-white">
         <h3 className="font-medium text-gray-900 truncate">{name}</h3>
         <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
     </div>
   );
