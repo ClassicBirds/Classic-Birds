@@ -1,4 +1,3 @@
-// src/components/Common/InventoryPopup.tsx
 import { Dialog } from '@headlessui/react';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
@@ -33,15 +32,12 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: ownedTokenIds, refetch: refetchOwnedTokens } = useReadContract({
+  const { data: ownedTokenIds, refetch } = useReadContract({
     address: WALLET_TRACKER_CONTRACT as `0x${string}`,
     abi: contractABI,
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    query: {
-      enabled: !!address && isOpen,
-    },
   });
 
   const getETCProvider = useCallback(() => {
@@ -63,9 +59,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
         ["function tokenURI(uint256 tokenId) external view returns (string memory)"],
         provider
       );
-      
-      const uri = await contract.tokenURI(tokenId);
-      return uri;
+      return await contract.tokenURI(tokenId);
     } catch (error) {
       console.error(`Error fetching tokenURI for token ${tokenId}:`, error);
       throw error;
@@ -117,11 +111,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       setError(null);
 
       try {
-        const response = await refetchOwnedTokens();
+        const { data } = await refetch();
+        const tokenIds = data as bigint[] | undefined;
         
-        if (response.error) throw response.error;
-
-        const tokenIds = response.data as bigint[];
         if (!tokenIds || tokenIds.length === 0) {
           setNfts([]);
           return;
@@ -138,9 +130,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
               token: {
                 address: TARGET_CONTRACT,
                 name: metadata.name || `ClassicBirds #${tokenIdStr}`,
-                image_url: metadata.image || '/placeholder-nft.png'
+                image_url: metadata.image
               },
-              image_url: metadata.image || '/placeholder-nft.png'
+              image_url: metadata.image
             };
           } catch (e) {
             console.error(`Failed to fetch metadata for token ${tokenIdStr}`, e);
@@ -156,8 +148,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
           }
         });
 
-        const formattedNFTs = await Promise.all(nftPromises);
-        setNfts(formattedNFTs);
+        setNfts(await Promise.all(nftPromises));
       } catch (err) {
         console.error('Error fetching NFTs:', err);
         setError('Failed to load NFTs. Please try again.');
@@ -167,7 +158,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     };
 
     if (isOpen) fetchNFTs();
-  }, [isOpen, address, refetchOwnedTokens, fetchTokenURI, fetchMetadata]);
+  }, [isOpen, address, fetchTokenURI, fetchMetadata, refetch]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
