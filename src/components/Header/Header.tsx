@@ -1,3 +1,4 @@
+// Header.tsx
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -5,6 +6,7 @@ import ConnectButton from "../connetbutton/ConnectButton";
 import InventoryPopup from "../Common/InventoryPopup";
 import { useAccount } from "wagmi";
 import { ToastContainer, toast } from "react-toastify";
+
 export function Header() {
   const [scrolling, setScrolling] = useState(false);
   const { address, isConnected } = useAccount();
@@ -37,7 +39,6 @@ export function Header() {
           </Link>
 
           <div className="flex flex-row gap-5">
-            {/* {isConnected && <Inventory />} */}
             <ConnectButton />
             <a
               className="px-4 py-3 hidden md:block relative z-50 hover:opacity-55 text-black duration-200 font-medium text-[14px] rounded-2xl bg-[#00ffb4]"
@@ -60,15 +61,16 @@ export function Header() {
               Inventory
             </button>
 
-            <InventoryPopup
-              isOpen={showInventory}
-              onClose={() => {
-                setShowInventory(false);
-              }}
-            />
+            {showInventory && (
+              <InventoryPopup
+                isOpen={showInventory}
+                onClose={() => setShowInventory(false)}
+              />
+            )}
           </div>
         </div>
       </div>
+      <ToastContainer position="bottom-right" />
     </header>
   );
 }
