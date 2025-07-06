@@ -66,10 +66,12 @@ export function Header() {
         </div>
       </div>
 
-      <InventoryPopup
-        isOpen={showInventory}
-        onClose={() => setShowInventory(false)}
-      />
+      {showInventory && (
+        <InventoryPopup
+          isOpen={showInventory}
+          onClose={() => setShowInventory(false)}
+        />
+      )}
 
       <ToastContainer
         position="bottom-right"
