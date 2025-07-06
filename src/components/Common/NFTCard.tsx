@@ -4,44 +4,46 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
   const [imgSrc, setImgSrc] = useState(image_url);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
 
-  // Array of fallback options (add your preferred IPFS gateways)
-  const fallbackGateways = [
-    'https://gateway.pinata.cloud',
+  // IPFS gateways to try as fallbacks
+  const ipfsGateways = [
     'https://ipfs.io',
+    'https://gateway.pinata.cloud',
     'https://cloudflare-ipfs.com',
     'https://dweb.link'
   ];
 
-  // Current IPFS CID (replace with your actual CID)
-  const ipfsCid = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
+  useEffect(() => {
+    setImgSrc(image_url);
+    setLoading(true);
+    setError(false);
+  }, [image_url]);
 
   const handleError = () => {
-    if (retryCount < fallbackGateways.length - 1) {
-      // Try next fallback gateway
-      const nextGateway = fallbackGateways[retryCount + 1];
-      setImgSrc(`${nextGateway}/ipfs/${ipfsCid}/${id}.png`);
-      setRetryCount(retryCount + 1);
-    } else {
-      // All fallbacks exhausted
-      setError(true);
-      setLoading(false);
+    if (!error) {
+      // Try extracting CID from current URL
+      const cidMatch = imgSrc.match(/ipfs\/([^/]+)/);
+      if (cidMatch && cidMatch[1]) {
+        const cid = cidMatch[1];
+        const currentGateway = imgSrc.split('/ipfs/')[0];
+        const currentIndex = ipfsGateways.indexOf(currentGateway);
+        
+        if (currentIndex < ipfsGateways.length - 1) {
+          // Try next gateway
+          const nextGateway = ipfsGateways[currentIndex + 1];
+          setImgSrc(`${nextGateway}/ipfs/${cid}/${id}.png`);
+          return;
+        }
+      }
     }
+    setError(true);
+    setLoading(false);
   };
 
   const handleLoad = () => {
     setLoading(false);
     setError(false);
   };
-
-  // Reset state when image_url prop changes
-  useEffect(() => {
-    setImgSrc(image_url);
-    setLoading(true);
-    setError(false);
-    setRetryCount(0);
-  }, [image_url]);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -64,7 +66,6 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
                 setImgSrc(image_url);
                 setLoading(true);
                 setError(false);
-                setRetryCount(0);
               }}
               className="text-sm text-blue-500 hover:underline"
             >
@@ -73,17 +74,17 @@ export default function NFTCard({ id, name, image_url }: { id: string, name: str
           </div>
         )}
 
-        {/* Image - always rendered but hidden when loading/error */}
-        <img 
-          src={imgSrc}
-          alt={`${name} #${id}`}
-          className={`object-cover w-full h-full ${
-            (loading || error) ? 'opacity-0 absolute' : 'opacity-100'
-          }`}
-          onError={handleError}
-          onLoad={handleLoad}
-          loading="lazy"
-        />
+        {/* Image - hidden when loading or in error state */}
+        {!error && (
+          <img 
+            src={imgSrc}
+            alt={`${name} #${id}`}
+            className={`object-cover w-full h-full ${loading ? 'opacity-0' : 'opacity-100'}`}
+            onError={handleError}
+            onLoad={handleLoad}
+            loading="lazy"
+          />
+        )}
       </div>
       <div className="p-3 bg-white">
         <h3 className="font-medium text-gray-900 truncate">{name}</h3>
