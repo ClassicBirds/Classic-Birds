@@ -1,21 +1,34 @@
-// NFTCard.tsx
 import React from 'react';
-import { LazyloadImage } from '../Lazyload';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
-export default function NFTCard({ id, name, image_url }: { id: string, name: string, image_url: string }) {
-  // Clean up the image URL
+interface NFTCardProps {
+  id: string;
+  name: string;
+  image_url: string;
+}
+
+export default function NFTCard({ id, name, image_url }: NFTCardProps) {
   const cleanImageUrl = image_url?.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/')
-    .replace(/\0+$/, '') // Remove null characters
+    .replace(/\0+$/, '')
     .trim();
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
         {cleanImageUrl ? (
-          <LazyloadImage 
+          <LazyLoadImage
             src={cleanImageUrl}
+            alt={name}
+            effect="blur" // Optional blur-up effect
+            width="100%"
+            height="100%"
+            style={{
+              objectFit: 'cover',
+              width: '100%',
+              height: '100%'
+            }}
             onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-              // Fallback to placeholder if image fails to load
               const target = e.target as HTMLImageElement;
               target.src = '/placeholder-nft.png';
               target.className = 'object-contain p-4';
