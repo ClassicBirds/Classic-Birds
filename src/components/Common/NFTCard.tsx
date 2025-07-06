@@ -1,11 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
-
-type NFTCardProps = {
-  id: string;
-  name: string;
-};
 
 type Metadata = {
   image: string;
@@ -13,78 +8,99 @@ type Metadata = {
   description?: string;
 };
 
-const WORKING_GATEWAYS = [
+type NFTCardProps = {
+  id: string;
+  name: string;
+};
+
+const IPFS_GATEWAYS = [
   'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/'
+  'https://dweb.link/ipfs/',
+  'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/'
 ];
 
 const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
 const IMAGE_CID = 'bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi';
 
+const normalizeIpfsUrl = (url: string): string => {
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+  if (url.includes('ipfs/ipfs/')) {
+    return url.split('ipfs/')[1];
+  }
+  return url;
+};
+
 export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
   const [imageUrl, setImageUrl] = useState<string>('/placeholder-nft.png');
   const [name, setName] = useState<string>(defaultName);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getWorkingUrl = async (cidPath: string, isImage = false) => {
-    for (const gateway of WORKING_GATEWAYS) {
-      try {
-        const url = `${gateway}${cidPath}`;
-        if (isImage) {
-          // Verify image exists
-          await axios.head(url, { timeout: 3000 });
-          return url;
-        } else {
-          // Fetch metadata
-          const response = await axios.get(url, { timeout: 3000 });
-          return response.data;
-        }
-      } catch (err) {
-        continue;
-      }
+  const testGateway = async (gateway: string, cidPath: string): Promise<string | null> => {
+    try {
+      const url = `${gateway}${cidPath}`;
+      await axios.head(url, { timeout: 2000 });
+      return url;
+    } catch {
+      return null;
     }
-    throw new Error('All gateways failed');
   };
 
-  useEffect(() => {
-    const loadNFT = async () => {
+  const fetchWithFallback = useCallback(async (cidPath: string, isImage = false): Promise<string> => {
+    // Try all gateways in parallel
+    const requests = IPFS_GATEWAYS.map(gateway => 
+      testGateway(gateway, cidPath)
+    );
+    
+    const results = await Promise.all(requests);
+    const workingUrl = results.find(url => url !== null);
+    
+    if (!workingUrl) {
+      throw new Error('All IPFS gateways failed');
+    }
+    
+    return workingUrl;
+  }, []);
+
+  const loadNFTData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Try to fetch metadata first
       try {
-        setLoading(true);
-        setError(null);
-
-        // Try metadata first
-        try {
-          const metadata = await getWorkingUrl(`${METADATA_CID}/${id}.json`);
-          if (metadata?.image) {
-            let imagePath = metadata.image;
-            if (imagePath.startsWith('ipfs://')) {
-              imagePath = imagePath.replace('ipfs://', '');
-            }
-            const imageUrl = await getWorkingUrl(imagePath, true);
-            setImageUrl(imageUrl);
-            setName(metadata.name || defaultName);
-            return;
-          }
-        } catch (e) {
-          console.warn(`Metadata load failed for ${id}`);
+        const metadataUrl = await fetchWithFallback(`${METADATA_CID}/${id}.json`);
+        const { data: metadata } = await axios.get<Metadata>(metadataUrl);
+        
+        if (metadata?.image) {
+          const imagePath = normalizeIpfsUrl(metadata.image);
+          const imageUrl = await fetchWithFallback(imagePath, true);
+          setImageUrl(imageUrl);
+          setName(metadata.name || defaultName);
+          return;
         }
-
-        // Fallback to direct image path
-        const directImageUrl = await getWorkingUrl(`${IMAGE_CID}/${id}.png`, true);
-        setImageUrl(directImageUrl);
-
-      } catch (error) {
-        console.error(`Error loading NFT #${id}:`, error);
-        setError('Failed to load NFT data');
-        setImageUrl('/placeholder-nft.png');
-      } finally {
-        setLoading(false);
+      } catch (e) {
+        console.warn(`Metadata load failed for ${id}`, e);
       }
-    };
 
-    loadNFT();
-  }, [id, defaultName]);
+      // Fallback to direct image path
+      const directImageUrl = await fetchWithFallback(`${IMAGE_CID}/${id}.png`, true);
+      setImageUrl(directImageUrl);
+    } catch (error) {
+      console.error(`Error loading NFT #${id}:`, error);
+      setError('Failed to load NFT data');
+      setImageUrl('/placeholder-nft.png');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, defaultName, fetchWithFallback]);
+
+  useEffect(() => {
+    loadNFTData();
+  }, [loadNFTData]);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -101,7 +117,7 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
             alt={`${name} (Token #${id})`}
             fill
             className="object-cover"
-            unoptimized // Required for IPFS images
+            unoptimized
             onError={() => {
               setError('Image failed to load');
               setImageUrl('/placeholder-nft.png');
