@@ -21,9 +21,8 @@ const WORKING_GATEWAYS = [
 const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
 const IMAGE_CID = 'bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi';
 
-// NEW: Function to clean up IPFS URLs
 const cleanIpfsUrl = (url: string): string => {
-  // Remove any gateway prefixes if they exist
+  // Remove any nested gateway URLs
   if (url.includes('gateway.pinata.cloud/ipfs/')) {
     return url.split('ipfs/')[1];
   }
@@ -44,7 +43,6 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
   const getWorkingUrl = async (cidPath: string, isImage = false) => {
     for (const gateway of WORKING_GATEWAYS) {
       try {
-        // NEW: Clean the CID path before using it
         const cleanPath = cleanIpfsUrl(cidPath);
         const url = `${gateway}${cleanPath}`;
         
@@ -72,7 +70,6 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
         try {
           const metadata = await getWorkingUrl(`${METADATA_CID}/${id}.json`);
           if (metadata?.image) {
-            // NEW: Clean the image URL before using it
             const imagePath = cleanIpfsUrl(metadata.image);
             const imageUrl = await getWorkingUrl(imagePath, true);
             setImageUrl(imageUrl);
