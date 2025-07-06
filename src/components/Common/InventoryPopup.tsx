@@ -19,39 +19,23 @@ const formatExactDecimals = (value: number, decimals: number) => {
   return `${integerPart}.${decimalPart}`;
 };
 
-// Function to extract image URL from metadata
-const extractImageUrl = (nft: any) => {
-  // First try direct image_url fields
-  if (nft.image_url) return nft.image_url;
-  if (nft.token?.image_url) return nft.token.image_url;
-  
-  // Try parsing metadata JSON if available
-  if (nft.metadata) {
-    try {
-      const metadata = typeof nft.metadata === 'string' ? JSON.parse(nft.metadata) : nft.metadata;
-      if (metadata.image) return metadata.image;
-      if (metadata.image_url) return metadata.image_url;
-    } catch (e) {
-      console.warn('Failed to parse NFT metadata', e);
-    }
-  }
-  
-  // Fallback to Blockscout's image generation
-  if (nft.token?.address && nft.token_id) {
-    return `https://etc.blockscout.com/api/v2/tokens/${nft.token.address}/instance/${nft.token_id}/image`;
-  }
-  
-  return '';
+type NFTItem = {
+  id: string;
+  token_id: string;
+  token: {
+    address: string;
+    name: string;
+  };
 };
 
 export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
   const { address } = useAccount();
-  const [nfts, setNfts] = useState<any[]>([]);
+  const [nfts, setNfts] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
 
-  // Contract reads (remain the same)
+  // Contract reads
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -101,14 +85,7 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
       const filtered = data.items?.filter((item: any) => 
         item.token.address.toLowerCase() === TARGET_CONTRACT.toLowerCase()
       );
-      
-      // Enhance NFTs with proper image URLs
-      const enhancedNFTs = (filtered || []).map(nft => ({
-        ...nft,
-        image_url: extractImageUrl(nft)
-      }));
-      
-      setNfts(enhancedNFTs);
+      setNfts(filtered || []);
     } catch (error) {
       console.error('Error fetching NFTs:', error);
     } finally {
@@ -185,7 +162,6 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
                   key={`${nft.token_id}-${nft.id}`}
                   id={nft.token_id || nft.id || 'N/A'}
                   name={nft.token?.name || 'ClassicBirds'}
-                  image_url={nft.image_url}
                 />
               ))}
             </div>
