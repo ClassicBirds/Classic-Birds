@@ -5,7 +5,7 @@ import { useAccount, useContractRead } from 'wagmi';
 import { ScaleLoader } from 'react-spinners';
 import { NFT_ADDR } from '@/config';
 import contractABI from '@/config/ABI/nft.json';
-import { providers } from 'ethers';
+import { ethers } from 'ethers';
 
 const TARGET_CONTRACT = '0x2D4e4BE7819F164c11eE9405d4D195e43C7a94c6';
 const WALLET_TRACKER_CONTRACT = '0x0B2C8149c1958F91A3bDAaf0642c2d34eb7c43ab';
@@ -61,8 +61,8 @@ export default function InventoryPopup({ isOpen, onClose }: { isOpen: boolean; o
 
   const fetchTokenURI = useCallback(async (tokenId: string): Promise<string> => {
     try {
-      const provider = new providers.JsonRpcProvider("https://etc.rivet.cloud");
-      const contract = new providers.Contract(
+      const provider = new ethers.providers.JsonRpcProvider("https://etc.rivet.link");
+      const contract = new ethers.Contract(
         TARGET_CONTRACT,
         [
           "function tokenURI(uint256 tokenId) external view returns (string memory)"
