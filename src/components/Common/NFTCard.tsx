@@ -15,21 +15,38 @@ type Metadata = {
 
 const WORKING_GATEWAYS = [
   'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/'
+  'https://dweb.link/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/'
 ];
 
 const METADATA_CID = 'bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
 const IMAGE_CID = 'bafybeialwj6r65npk2olvpftxuodjrmq4watedlvbqere4ytsuwmkzfjbi';
 
+const cleanIpfsUrl = (url: string): string => {
+  // Remove any nested gateway URLs
+  if (url.includes('gateway.pinata.cloud/ipfs/')) {
+    return url.split('ipfs/')[1];
+  }
+  // Handle ipfs:// format
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+  // Return as-is if already clean
+  return url;
+};
+
 export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
   const [imageUrl, setImageUrl] = useState<string>('/placeholder-nft.png');
+  const [name, setName] = useState<string>(defaultName);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const getWorkingUrl = async (cidPath: string, isImage = false) => {
     for (const gateway of WORKING_GATEWAYS) {
       try {
-        const url = `${gateway}${cidPath}`;
+        const cleanPath = cleanIpfsUrl(cidPath);
+        const url = `${gateway}${cleanPath}`;
+        
         if (isImage) {
           await axios.head(url, { timeout: 3000 });
           return url;
@@ -54,12 +71,10 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
         try {
           const metadata = await getWorkingUrl(`${METADATA_CID}/${id}.json`);
           if (metadata?.image) {
-            let imagePath = metadata.image;
-            if (imagePath.startsWith('ipfs://')) {
-              imagePath = imagePath.replace('ipfs://', '');
-            }
+            const imagePath = cleanIpfsUrl(metadata.image);
             const imageUrl = await getWorkingUrl(imagePath, true);
             setImageUrl(imageUrl);
+            setName(metadata.name || defaultName);
             return;
           }
         } catch (e) {
@@ -80,7 +95,7 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
     };
 
     loadNFT();
-  }, [id]);
+  }, [id, defaultName]);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -94,7 +109,7 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
         ) : (
           <Image
             src={imageUrl}
-            alt={`ClassicBirds (Token #${id})`}
+            alt={`${name} (Token #${id})`}
             fill
             className="object-cover"
             unoptimized
@@ -105,9 +120,9 @@ export default function NFTCard({ id, name: defaultName }: NFTCardProps) {
           />
         )}
       </div>
-      <div className="p-3 bg-white text-center">
-        <h3 className="font-medium text-gray-900">ClassicBirds</h3>
-        <p className="text-sm text-gray-600">Token ID: #{id}</p>
+      <div className="p-3 bg-white">
+        <h3 className="font-medium text-gray-900 ">Classic Birds</h3>
+        <p className="text-sm text-gray-600 mt-1">Token ID: #{id}</p>
         {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
     </div>
