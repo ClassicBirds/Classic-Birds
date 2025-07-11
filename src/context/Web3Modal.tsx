@@ -17,7 +17,7 @@ const ethereumClassic = {
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: ["https://etc.etcdesktop.com"] }, // Use a reliable ETC RPC
+    default: { http: ["https://etc.rivet.link"] }, // Use a reliable ETC RPC
   },
   blockExplorers: {
     default: { name: "BlockScout", url: "https://blockscout.com/etc/mainnet" },
