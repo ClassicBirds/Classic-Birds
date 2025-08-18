@@ -1,5 +1,5 @@
 // src/components/Common/InventoryPopup.tsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
 import { useAccount, useContractRead } from 'wagmi';
@@ -20,6 +20,17 @@ type NFTItem = {
   };
 };
 
+type BlockscoutNFTResponse = {
+  items?: Array<{
+    id: string;
+    token_id: string;
+    token?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
+};
+
 type InventoryPopupProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -38,6 +49,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const [loading, setLoading] = useState(false);
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Contract reads
   const { data: contractBalance } = useContractRead({
@@ -83,20 +95,33 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
 
   const fetchNFTs = async () => {
     if (!address) return;
+    
     setLoading(true);
+    setError(null);
+    
     try {
-      const { data } = await axios.get(
+      const { data } = await axios.get<BlockscoutNFTResponse>(
         `https://etc.blockscout.com/api/v2/addresses/${address}/nft?type=ERC-721`,
         { timeout: 5000 }
       );
       
-      const filtered = data.items?.filter((item: any) => 
-        item.token.address.toLowerCase() === TARGET_CONTRACT.toLowerCase()
-      ) || [];
+      // Safely filter NFTs with proper null checks
+      const filtered = (data.items || []).filter((item) => {
+        const itemAddress = item?.token?.address?.toLowerCase();
+        return itemAddress && itemAddress === TARGET_CONTRACT.toLowerCase();
+      }).map((item) => ({
+        id: item.id,
+        token_id: item.token_id || '0',
+        token: {
+          address: item.token?.address || '',
+          name: item.token?.name || 'ClassicBirds'
+        }
+      }));
       
       setNfts(filtered);
     } catch (err) {
       console.error('Error fetching NFTs:', err);
+      setError('Failed to load NFTs. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -150,18 +175,24 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
             </div>
           )}
 
-          {!loading && nfts.length === 0 && (
+          {error && (
+            <div className="text-center py-12 text-red-500">
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && nfts.length === 0 && (
             <div className="text-center py-12 text-gray-500">
               No NFTs found in your wallet.
             </div>
           )}
 
-          {!loading && nfts.length > 0 && (
+          {!loading && !error && nfts.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-6 pt-0">
               {nfts.map((nft) => (
                 <NFTCard
                   key={`${nft.token_id}-${nft.id}`}
-                  id={nft.token_id || nft.id || 'N/A'}
+                  id={nft.token_id || 'N/A'}
                   name={nft.token?.name || 'ClassicBirds'}
                 />
               ))}
