@@ -17,7 +17,7 @@ const ethereumClassic = {
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: ["https://etc.rivet.link"] }, // Use a reliable ETC RPC
+    default: { http: ["https://etc.etcdesktop.com"] }, // Use a reliable ETC RPC
   },
   blockExplorers: {
     default: { name: "BlockScout", url: "https://blockscout.com/etc/mainnet" },
@@ -29,7 +29,7 @@ const ethereumClassic = {
 const metadata = {
   name: 'Classic Birds',
   description: 'Classic Birds',
-  url: 'https://classic-birds.vercel.app', // origin must match your domain & subdomain
+  url: 'https://classicbirds.org', // origin must match your domain & subdomain
   icons: ['/IMG_20250327_010138_507.webp']
 }
 const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || ""
