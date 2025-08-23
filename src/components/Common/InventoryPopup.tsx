@@ -87,7 +87,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
 
-  // Contract reads for reward calculation - removed 'watch' property
+  // Contract reads for reward calculation
   const { data: contractBalance } = useContractRead({
     address: NFT_ADDR,
     abi: contractABI,
@@ -109,7 +109,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     chainId,
   });
 
-  // Helper contract to get owned tokens
+  // Helper contract to get owned tokens - removed 'enabled' property
   const { 
     data: ownedTokenIds, 
     refetch: refetchNFTs, 
@@ -120,7 +120,6 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     functionName: "getOwnedTokens",
     args: [address],
     chainId,
-    enabled: false,
   });
 
   // Fetch metadata for a single token
@@ -196,7 +195,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     }
   }, [ownedTokenIds, fetchAllMetadata]);
 
-  // Fetch NFTs when modal opens
+  // Fetch NFTs when modal opens - manually trigger refetch
   useEffect(() => {
     if (isOpen && address) {
       setLoading(true);
