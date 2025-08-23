@@ -1,5 +1,5 @@
 // src/components/Common/InventoryPopup.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Dialog } from '@headlessui/react';
 import NFTCard from './NFTCard';
 import { useAccount, useContractRead } from 'wagmi';
@@ -127,7 +127,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   });
 
   // Fetch metadata for a single token
-  const fetchTokenMetadata = async (tokenId: bigint): Promise<NFTMetadata> => {
+  const fetchTokenMetadata = useCallback(async (tokenId: bigint): Promise<NFTMetadata> => {
     try {
       const metadataUrl = `${BASE_URI}/${tokenId}`;
       const response = await fetch(metadataUrl);
@@ -150,14 +150,14 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       return {
         name: `ClassicBird #${tokenId}`,
         description: 'ClassicBird NFT',
-        image: `${BASE_URI}/${tokenId}.png`, // Try direct image path
+        image: `${BASE_URI}/${tokenId}.png`,
         attributes: []
       };
     }
-  };
+  }, []);
 
   // Fetch metadata for all tokens
-  const fetchAllMetadata = async (tokenIds: bigint[]): Promise<NFTItem[]> => {
+  const fetchAllMetadata = useCallback(async (tokenIds: bigint[]): Promise<NFTItem[]> => {
     const nftItems: NFTItem[] = [];
     
     // Use Promise.all for parallel fetching
@@ -177,17 +177,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     }
     
     return nftItems;
-  };
-
-  // Fetch NFTs when modal opens
-  useEffect(() => {
-    if (isOpen && address) {
-      setLoading(true);
-      refetchNFTs();
-    } else if (!isOpen) {
-      setNfts([]);
-    }
-  }, [isOpen, address, refetchNFTs]);
+  }, [fetchTokenMetadata]);
 
   // Process fetched token IDs and fetch metadata
   useEffect(() => {
@@ -207,7 +197,17 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     if (ownedTokenIds) {
       processNFTs();
     }
-  }, [ownedTokenIds]);
+  }, [ownedTokenIds, fetchAllMetadata]); // Added fetchAllMetadata to dependencies
+
+  // Fetch NFTs when modal opens
+  useEffect(() => {
+    if (isOpen && address) {
+      setLoading(true);
+      refetchNFTs();
+    } else if (!isOpen) {
+      setNfts([]);
+    }
+  }, [isOpen, address, refetchNFTs]);
 
   // Update loading state
   useEffect(() => {
