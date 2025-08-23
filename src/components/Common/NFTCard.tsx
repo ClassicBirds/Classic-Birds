@@ -1,3 +1,4 @@
+// src/components/Common/NFTCard.tsx
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 
@@ -14,30 +15,35 @@ type NFTCardProps = {
 
 const BASE_URI = 'https://gateway.pinata.cloud/ipfs/bafybeihulvn4iqdszzqhzlbdq5ohhcgwbbemlupjzzalxvaasrhvvw6nbq';
 
-export default function NFTCard({ id, name: defaultName, image: propImage, description, attributes }: NFTCardProps) {
+export default function NFTCard({ id, name: defaultName, image: propImage, description: propDescription, attributes: propAttributes }: NFTCardProps) {
   const [imageUrl, setImageUrl] = useState<string>(propImage || '/placeholder-nft.png');
   const [name, setName] = useState<string>(defaultName);
+  const [description, setDescription] = useState<string>(propDescription || '');
+  const [attributes, setAttributes] = useState<any[]>(propAttributes || []);
   const [loading, setLoading] = useState(!propImage);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If image is provided via props, use it directly
+    // If image and metadata are provided via props, use them directly
     if (propImage) {
       setImageUrl(propImage);
+      if (propDescription) setDescription(propDescription);
+      if (propAttributes) setAttributes(propAttributes);
       setLoading(false);
       return;
     }
 
-    const loadNFTImage = async () => {
+    const loadNFTData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Try the metadata endpoint first
+        // Try to fetch metadata
         try {
           const metadataResponse = await fetch(`${BASE_URI}/${id}`);
           if (metadataResponse.ok) {
             const metadata = await metadataResponse.json();
+            
             if (metadata.image) {
               // Handle both absolute and relative image URLs
               let finalImageUrl = metadata.image;
@@ -45,9 +51,13 @@ export default function NFTCard({ id, name: defaultName, image: propImage, descr
                 finalImageUrl = `${BASE_URI}/${metadata.image}`;
               }
               setImageUrl(finalImageUrl);
-              setName(metadata.name || defaultName);
-              return;
             }
+            
+            if (metadata.name) setName(metadata.name);
+            if (metadata.description) setDescription(metadata.description);
+            if (metadata.attributes) setAttributes(metadata.attributes);
+            
+            return;
           }
         } catch (e) {
           console.warn(`Metadata load failed for ${id}:`, e);
@@ -55,26 +65,19 @@ export default function NFTCard({ id, name: defaultName, image: propImage, descr
 
         // Fallback: try direct image path
         const directImageUrl = `${BASE_URI}/${id}.png`;
-        
-        // Check if image exists
-        const imageCheck = await fetch(directImageUrl, { method: 'HEAD' });
-        if (imageCheck.ok) {
-          setImageUrl(directImageUrl);
-        } else {
-          throw new Error('Image not found');
-        }
+        setImageUrl(directImageUrl);
 
       } catch (error) {
         console.error(`Error loading NFT #${id}:`, error);
-        setError('Failed to load NFT image');
+        setError('Failed to load NFT data');
         setImageUrl('/placeholder-nft.png');
       } finally {
         setLoading(false);
       }
     };
 
-    loadNFTImage();
-  }, [id, defaultName, propImage]);
+    loadNFTData();
+  }, [id, defaultName, propImage, propDescription, propAttributes]);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white">
