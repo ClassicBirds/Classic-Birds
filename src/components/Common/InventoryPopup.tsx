@@ -30,6 +30,7 @@ type NFTItem = {
     address: string;
     name: string;
   };
+  burnReward?: number;
 };
 
 type InventoryPopupProps = {
@@ -46,40 +47,6 @@ const formatExactDecimals = (value: number, decimals: number): string => {
   return `${formattedInteger}.${formattedFraction}`;
 };
 
-// Inline helper ABI (fallback)
-const inlineHelperABI = [
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_nftAddress",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_owner",
-        "type": "address"
-      }
-    ],
-    "name": "getOwnedTokens",
-    "outputs": [
-      {
-        "internalType": "uint256[]",
-        "name": "",
-        "type": "uint256[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-] as const;
-
 export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps) {
   const { address } = useAccount();
   const [nfts, setNfts] = useState<NFTItem[]>([]);
@@ -87,38 +54,38 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
   const [walletWorth, setWalletWorth] = useState(0);
   const [rewardPerNFT, setRewardPerNFT] = useState(0);
 
-  // Contract reads for reward calculation
-  const { data: contractBalance } = useContractRead({
-    address: NFT_ADDR,
-    abi: contractABI,
-    functionName: "totalLockedValue",
-    chainId,
-  });
-
-  const { data: currentTokenId } = useContractRead({
-    address: NFT_ADDR,
-    abi: contractABI,
-    functionName: "currentTokenId",
-    chainId,
-  });
-
-  const { data: totalBurned } = useContractRead({
-    address: NFT_ADDR,
-    abi: contractABI,
-    functionName: "totalBurned",
-    chainId,
-  });
-
-  // Helper contract to get owned tokens - removed 'enabled' property
+  // Get owned tokens from helper contract
   const { 
     data: ownedTokenIds, 
-    refetch: refetchNFTs, 
-    isLoading: isLoadingNFTs 
+    refetch: refetchOwnedTokens,
+    isLoading: isLoadingTokens 
   } = useContractRead({
     address: NFT_HELPER_ADDR,
-    abi: helperABI || inlineHelperABI,
-    functionName: "getOwnedTokens",
+    abi: helperABI,
+    functionName: "walletOfOwner",
     args: [address],
+    chainId,
+    enabled: !!address,
+  });
+
+  // Get burn rewards for all owned tokens
+  const { 
+    data: burnRewardsData,
+    refetch: refetchBurnRewards,
+    isLoading: isLoadingRewards 
+  } = useContractRead({
+    address: NFT_HELPER_ADDR,
+    abi: helperABI,
+    functionName: "getMyBurnRewards",
+    chainId,
+    enabled: !!address && !!ownedTokenIds,
+  });
+
+  // Get overall burn stats
+  const { data: burnStats } = useContractRead({
+    address: NFT_HELPER_ADDR,
+    abi: helperABI,
+    functionName: "getBurnStats",
     chainId,
   });
 
@@ -134,7 +101,7 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       
       const metadata: NFTMetadata = await response.json();
       
-      // Ensure image URL is absolute (in case it's relative in metadata)
+      // Ensure image URL is absolute
       if (metadata.image && !metadata.image.startsWith('http')) {
         metadata.image = `${BASE_URI}/${metadata.image}`;
       }
@@ -142,7 +109,6 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
       return metadata;
     } catch (error) {
       console.error(`Error fetching metadata for token ${tokenId}:`, error);
-      // Return fallback metadata
       return {
         name: `ClassicBird #${tokenId}`,
         description: 'ClassicBird NFT',
@@ -152,15 +118,28 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     }
   }, []);
 
-  // Fetch metadata for all tokens
-  const fetchAllMetadata = useCallback(async (tokenIds: bigint[]): Promise<NFTItem[]> => {
+  // Process owned tokens and fetch metadata
+  const processOwnedTokens = useCallback(async () => {
+    if (!ownedTokenIds) return;
+
+    const tokenIds = ownedTokenIds as bigint[];
+    let rewards: bigint[] = [];
+    
+    // Extract rewards from burnRewardsData if available
+    if (burnRewardsData) {
+      const [rewardTokenIds, rewardAmounts] = burnRewardsData as [bigint[], bigint[], bigint];
+      rewards = rewardAmounts;
+    }
+
     const nftItems: NFTItem[] = [];
     
-    // Use Promise.all for parallel fetching
+    // Fetch metadata for all tokens in parallel
     const metadataPromises = tokenIds.map(tokenId => fetchTokenMetadata(tokenId));
     const metadatas = await Promise.all(metadataPromises);
     
     for (let i = 0; i < tokenIds.length; i++) {
+      const burnReward = rewards[i] ? Number(rewards[i]) / 1e18 : 0;
+      
       nftItems.push({
         id: tokenIds[i].toString(),
         token_id: tokenIds[i].toString(),
@@ -168,67 +147,52 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
         token: {
           address: TARGET_CONTRACT,
           name: 'ClassicBirds'
-        }
+        },
+        burnReward
       });
     }
     
-    return nftItems;
-  }, [fetchTokenMetadata]);
+    setNfts(nftItems);
+    setLoading(false);
+  }, [ownedTokenIds, burnRewardsData, fetchTokenMetadata]);
 
-  // Process fetched token IDs and fetch metadata
+  // Update burn stats
   useEffect(() => {
-    const processNFTs = async () => {
-      if (ownedTokenIds && (ownedTokenIds as bigint[]).length > 0) {
-        const tokenIds = ownedTokenIds as bigint[];
-        const nftItems = await fetchAllMetadata(tokenIds);
-        setNfts(nftItems);
-        setLoading(false);
-      } else if (ownedTokenIds) {
-        // No NFTs found
-        setNfts([]);
-        setLoading(false);
+    if (burnStats) {
+      const [totalLocked, , ethPerNFT] = burnStats as [bigint, bigint, bigint, bigint];
+      const calculatedReward = Number(ethPerNFT) / 1e18;
+      setRewardPerNFT(calculatedReward);
+      
+      // Update wallet worth based on number of NFTs and reward per NFT
+      if (nfts.length > 0) {
+        const totalWorth = calculatedReward * nfts.length;
+        setWalletWorth(totalWorth);
       }
-    };
-
-    if (ownedTokenIds) {
-      processNFTs();
     }
-  }, [ownedTokenIds, fetchAllMetadata]);
+  }, [burnStats, nfts.length]);
 
-  // Fetch NFTs when modal opens - manually trigger refetch
+  // Process tokens when data is available
+  useEffect(() => {
+    if (ownedTokenIds) {
+      setLoading(true);
+      processOwnedTokens();
+    }
+  }, [ownedTokenIds, processOwnedTokens]);
+
+  // Refetch data when modal opens
   useEffect(() => {
     if (isOpen && address) {
-      setLoading(true);
-      refetchNFTs();
+      refetchOwnedTokens();
+      refetchBurnRewards();
     } else if (!isOpen) {
       setNfts([]);
     }
-  }, [isOpen, address, refetchNFTs]);
+  }, [isOpen, address, refetchOwnedTokens, refetchBurnRewards]);
 
   // Update loading state
   useEffect(() => {
-    setLoading(isLoadingNFTs);
-  }, [isLoadingNFTs]);
-
-  // Calculate reward per NFT
-  useEffect(() => {
-    if (contractBalance && currentTokenId && totalBurned) {
-      const balanceInETC = Number(contractBalance) / 1e18;
-      const activeNFTs = Number(currentTokenId) - 1 - Number(totalBurned);
-      const calculatedReward = activeNFTs > 0 ? balanceInETC / activeNFTs : 0;
-      setRewardPerNFT(calculatedReward);
-    }
-  }, [contractBalance, currentTokenId, totalBurned]);
-
-  // Calculate wallet worth
-  useEffect(() => {
-    if (rewardPerNFT > 0 && nfts.length > 0) {
-      const totalWorth = rewardPerNFT * nfts.length;
-      setWalletWorth(totalWorth);
-    } else {
-      setWalletWorth(0);
-    }
-  }, [rewardPerNFT, nfts]);
+    setLoading(isLoadingTokens || isLoadingRewards);
+  }, [isLoadingTokens, isLoadingRewards]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[100]">
@@ -280,18 +244,41 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
           )}
 
           {!loading && nfts.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto p-6 pt-0">
-              {nfts.map((nft) => (
-                <NFTCard
-                  key={nft.token_id}
-                  id={nft.token_id}
-                  name={nft.metadata.name}
-                  image={nft.metadata.image}
-                  description={nft.metadata.description}
-                  attributes={nft.metadata.attributes}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto p-6 pt-0">
+                {nfts.map((nft) => (
+                  <NFTCard
+                    key={nft.token_id}
+                    id={nft.token_id}
+                    name={nft.metadata.name}
+                    image={nft.metadata.image}
+                    description={nft.metadata.description}
+                    attributes={nft.metadata.attributes}
+                    burnReward={nft.burnReward}
+                  />
+                ))}
+              </div>
+              
+              {/* Individual NFT Burn Rewards Summary */}
+              <div className="mx-6 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-2">Individual Burn Rewards:</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {nfts.slice(0, 4).map((nft) => (
+                    <div key={nft.id} className="flex justify-between">
+                      <span className="text-blue-700">Bird #{nft.token_id}:</span>
+                      <span className="font-medium text-green-600">
+                        {nft.burnReward ? formatExactDecimals(nft.burnReward, 6) : '0.000000'} ETC
+                      </span>
+                    </div>
+                  ))}
+                  {nfts.length > 4 && (
+                    <div className="col-span-2 text-center text-blue-600 text-xs">
+                      + {nfts.length - 4} more NFTs...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
           
           <div className="px-6 pb-6 pt-4">
