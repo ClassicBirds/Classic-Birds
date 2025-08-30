@@ -65,7 +65,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     functionName: "walletOfOwner",
     args: [address],
     chainId,
-    enabled: !!address,
+    query: {
+      enabled: !!address,
+    },
   });
 
   // Get burn rewards for all owned tokens
@@ -78,7 +80,9 @@ export default function InventoryPopup({ isOpen, onClose }: InventoryPopupProps)
     abi: helperABI,
     functionName: "getMyBurnRewards",
     chainId,
-    enabled: !!address && !!ownedTokenIds,
+    query: {
+      enabled: !!address && !!ownedTokenIds,
+    },
   });
 
   // Get overall burn stats
